@@ -1,0 +1,21 @@
+name: CI
+
+on:
+  push: { branches: [main] }
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    # Dummy values: these steps do not connect to anything. env.ts throws on a
+    # missing var at import time, and vitest imports the module graph.
+    env:
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+      REDIS_URL: redis://localhost:6379
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22', cache: 'npm' }
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
