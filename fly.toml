@@ -1,0 +1,39 @@
+# Fly.io deployment. Chosen over a VM because it terminates TLS, runs the
+# healthcheck and does rolling deploys without any of it being my problem, and
+# because managed Postgres and Redis (Upstash) are one command away.
+#
+# NOT deployed by CI. Deploys are manual and deliberate — an auto-deploy on
+# green main is the right default for a team with a staging environment, and
+# this has neither.
+
+app = "tollgate"
+primary_region = "sin"          # closest region to the operator
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  NODE_ENV = "production"
+  PORT = "3000"
+  ENABLED_PROVIDERS = "mock"
+  STATIC_ROOT = "/app/apps/dashboard/dist"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = "suspend"
+  auto_start_machines = true
+  # One machine always warm: a cold start on the demo URL is the difference
+  # between someone seeing the product and someone closing the tab.
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    interval = "15s"
+    timeout = "3s"
+    grace_period = "20s"
+    method = "GET"
+    path = "/ready"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

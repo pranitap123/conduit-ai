@@ -24,6 +24,8 @@ export interface AppDeps {
   secureCookies?: boolean;
   /** Absolute path to the built dashboard. Omit to run API-only. */
   staticRoot?: string;
+  /** Trust X-Forwarded-For. Only safe behind a proxy that sets it. */
+  trustProxy?: boolean;
 }
 
 /**
@@ -42,6 +44,9 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     // A gateway forwards bodies it did not author. Without an explicit ceiling
     // one caller can exhaust memory with a single large POST.
     bodyLimit: 1024 * 1024,
+    // Behind Fly/nginx the socket address is the proxy, so IP-keyed limits would
+    // treat all traffic as one client. Only enable where a trusted proxy sets it.
+    trustProxy: deps.trustProxy ?? false,
   });
 
   // Security headers. contentSecurityPolicy is off because this process serves
@@ -59,6 +64,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   await app.register(healthRoutes);
   await app.register(dashboardRoutes, {
     db: deps.db,
+    redis: deps.redis,
     authSecret: deps.authSecret ?? 'dev-only-insecure-secret',
     secureCookies: deps.secureCookies ?? false,
   });

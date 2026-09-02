@@ -33,7 +33,7 @@ beforeAll(async () => {
   app = await buildApp({
     db, redis, registry: new ProviderRegistry(['mock']),
     rateLimitPerMinute: 1000, cacheTtlSeconds: 1, upstreamTimeoutMs: 3_000,
-    authSecret: SECRET,
+    authSecret: SECRET, trustProxy: true,
   });
 });
 
@@ -222,5 +222,23 @@ describe('RBAC', () => {
 
     // Read access is unaffected.
     expect((await get('/api/overview', member.cookie)).statusCode).toBe(200);
+  });
+});
+
+describe('auth rate limiting', () => {
+  it('refuses repeated failed logins from one address', async () => {
+    const attempt = async (): Promise<number> => (await app.inject({
+      method: 'POST', url: '/api/auth/login',
+      headers: { 'x-forwarded-for': '203.0.113.77' },
+      payload: { email: 'nobody@example.com', password: 'wrong-password' },
+    })).statusCode;
+
+    const codes: number[] = [];
+    for (let i = 0; i < 14; i += 1) codes.push(await attempt());
+
+    // The limit is 10/minute per address. Everything after that is refused,
+    // so a credential list cannot be walked through this endpoint.
+    expect(codes.filter((c) => c === 401).length).toBeLessThanOrEqual(10);
+    expect(codes).toContain(429);
   });
 });

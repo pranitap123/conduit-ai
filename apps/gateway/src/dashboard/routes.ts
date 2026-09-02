@@ -3,6 +3,8 @@ import { z } from 'zod';
 import type { Kysely } from 'kysely';
 import { generateApiKey } from '../auth/apiKeys.js';
 import { hashPassword, verifyPassword } from '../auth/passwords.js';
+import type { Redis } from 'ioredis';
+import { RateLimiter } from '../limits/rateLimiter.js';
 import type { DB } from '../db/types.js';
 import { apiError } from '../gateway/errors.js';
 import { signSession, verifySession } from './sessions.js';
@@ -10,6 +12,7 @@ import { byModel, getRequest, listRequests, overview, timeseries } from './queri
 
 export interface DashboardDeps {
   db: Kysely<DB>;
+  redis: Redis;
   authSecret: string;
   secureCookies: boolean;
 }
@@ -23,6 +26,35 @@ declare module 'fastify' {
 const COOKIE = 'tg_session';
 
 export async function dashboardRoutes(app: FastifyInstance, deps: DashboardDeps): Promise<void> {
+  const limiter = new RateLimiter(deps.redis);
+
+  /**
+   * Credential-stuffing defence for the auth routes.
+   *
+   * Keyed on client IP, not email: an attacker rotating through a leaked
+   * credential list changes the email every attempt, so an email-keyed limit
+   * would never fire. IP is coarse — it penalises everyone behind one NAT — but
+   * it is the only identifier the attacker cannot freely vary.
+   *
+   * Fails OPEN, deliberately, and differently from the gateway limiter: a Redis
+   * outage must not lock every user out of the console they would use to
+   * diagnose the outage. The gateway path fails closed because there the
+   * downside is an unmetered request, not a locked door.
+   */
+  const limitAuth = async (req: FastifyRequest, reply: FastifyReply): Promise<boolean> => {
+    try {
+      const result = await limiter.check(`auth:${req.ip}`, 10, 60_000);
+      if (!result.allowed) {
+        reply.header('retry-after', String(result.retryAfterSeconds));
+        await reply.code(429).send(
+          apiError('rate_limit_error', 'Too many attempts. Try again shortly.', req.id));
+        return false;
+      }
+    } catch (err) {
+      req.log.error({ err }, 'auth rate limiter unavailable; failing open');
+    }
+    return true;
+  };
   /**
    * Resolves the session cookie to a user AND their org membership on every
    * request. The org is never taken from the URL or the request body — if it
@@ -52,6 +84,7 @@ export async function dashboardRoutes(app: FastifyInstance, deps: DashboardDeps)
   // ------------------------------------------------------------------ auth
 
   app.post('/api/auth/signup', async (req, reply) => {
+    if (!await limitAuth(req, reply)) return reply;
     const parsed = z.object({
       email: z.string().email(),
       password: z.string().min(10).max(200),
@@ -92,6 +125,7 @@ export async function dashboardRoutes(app: FastifyInstance, deps: DashboardDeps)
   });
 
   app.post('/api/auth/login', async (req, reply) => {
+    if (!await limitAuth(req, reply)) return reply;
     const parsed = z.object({ email: z.string().email(), password: z.string() })
       .safeParse(req.body);
     if (!parsed.success) {

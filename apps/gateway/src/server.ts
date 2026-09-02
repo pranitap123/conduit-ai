@@ -17,6 +17,7 @@ const app = await buildApp({
   authSecret: env.authSecret,
   corsOrigin: env.corsOrigin,
   secureCookies: env.nodeEnv === 'production',
+  trustProxy: env.nodeEnv === 'production',
   ...(env.staticRoot === null ? {} : { staticRoot: resolve(env.staticRoot) }),
 });
 
