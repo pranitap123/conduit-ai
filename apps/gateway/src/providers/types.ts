@@ -66,8 +66,22 @@ export class ProviderError extends Error {
   }
 }
 
+/**
+ * A streamed chunk. `usage` arrives on the FINAL chunk only, if at all: most
+ * providers report token counts once the stream terminates. A stream that is
+ * cut short therefore has no usage, which is exactly why TokenUsage is
+ * nullable everywhere downstream.
+ */
+export interface StreamChunk {
+  delta: string;
+  done: boolean;
+  usage?: TokenUsage | null;
+  finishReason?: CompletionResult['finishReason'];
+}
+
 export interface LLMProvider {
   readonly name: string;
   supports(model: string): boolean;
   complete(req: CompletionRequest, signal: AbortSignal): Promise<CompletionResult>;
+  stream(req: CompletionRequest, signal: AbortSignal): AsyncIterable<StreamChunk>;
 }

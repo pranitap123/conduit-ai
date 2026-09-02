@@ -3,6 +3,7 @@ import {
   type CompletionResult,
   type LLMProvider,
   ProviderError,
+  type StreamChunk,
 } from './types.js';
 
 /**
@@ -65,6 +66,44 @@ export class MockProvider implements LLMProvider {
         completionTokens: Math.ceil(content.length / 4),
       },
       finishReason: 'stop',
+    };
+  }
+
+  async *stream(req: CompletionRequest, signal: AbortSignal): AsyncIterable<StreamChunk> {
+    if (req.model === 'mock-fail-permanent') {
+      throw new ProviderError('mock invalid request', 'mock', false, 400);
+    }
+
+    const prompt = req.messages.map((m) => m.content).join(' ');
+    const words = `[mock] streamed reply for ${req.messages.length} message(s)`.split(' ');
+    let emitted = 0;
+
+    for (const [i, word] of words.entries()) {
+      // Abort mid-stream is a first-class case: the client disconnected, or the
+      // upstream died. Both surface here as an aborted signal.
+      if (signal.aborted) {
+        throw new ProviderError('stream aborted', 'mock', false);
+      }
+      await sleep(20, signal);
+      emitted += 1;
+
+      // Simulate an upstream that dies part-way through, so partial-stream
+      // usage accounting can actually be tested.
+      if (req.model === 'mock-fail-midstream' && i === 2) {
+        throw new ProviderError('mock upstream closed mid-stream', 'mock', true, 502);
+      }
+
+      yield { delta: i === 0 ? word : ` ${word}`, done: false };
+    }
+
+    yield {
+      delta: '',
+      done: true,
+      finishReason: 'stop',
+      usage: {
+        promptTokens: Math.ceil(prompt.length / 4),
+        completionTokens: emitted,
+      },
     };
   }
 }
