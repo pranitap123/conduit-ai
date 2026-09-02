@@ -34,7 +34,7 @@ export function Overview() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-[20px] font-semibold tracking-tight">Overview</h1>
+        <h1 className="t-page">Overview</h1>
         <RangePicker hours={hours} onChange={setHours} />
       </div>
 
@@ -55,6 +55,19 @@ export function Overview() {
             <Reading
               label="Tokens" value={formatCount(data.o.totalTokens)}
               note="Reported by provider"
+            />
+            {/*
+             * Cache hit rate is a ratio of two figures the ledger already
+             * records, so it is a genuine reading rather than an invented one.
+             * It sits beside spend deliberately: a rising hit rate is the
+             * cheapest lever anyone has on the number to its left.
+             */}
+            <Reading
+              label="Cache hits" tone="cache"
+              value={formatPercent(data.o.requests === 0 ? 0 : data.o.cacheHits / data.o.requests)}
+              note={data.o.requests === 0
+                ? 'No traffic yet'
+                : `${formatCount(data.o.cacheHits)} of ${formatCount(data.o.requests)}`}
             />
             <Reading
               label="Failures" value={formatPercent(data.o.requests === 0 ? 0 : data.o.errors / data.o.requests)}
@@ -80,13 +93,13 @@ export function Overview() {
               <div className="grid gap-4 lg:grid-cols-2">
                 <Panel title="Request volume">
                   <VolumeChart data={data.t} />
-                  <p className="px-4 pb-3 text-[12px] text-ink-faint">
+                  <p className="px-4 pb-3 t-meta">
                     Served upstream, served from cache, and failed — stacked to the total.
                   </p>
                 </Panel>
                 <Panel title="Latency, 95th percentile">
                   <LatencyChart data={data.t} />
-                  <p className="px-4 pb-3 text-[12px] text-ink-faint">
+                  <p className="px-4 pb-3 t-meta">
                     Gateway time including the upstream call. A mean would hide the slow tail.
                   </p>
                 </Panel>
@@ -112,18 +125,18 @@ function ModelTable({ rows }: { rows: ModelRow[] }) {
       <table className="w-full text-[13px]">
         <caption className="sr-only">Requests, tokens and spend grouped by model</caption>
         <thead>
-          <tr className="text-ink-soft border-b border-rule-soft">
-            <th scope="col" className="text-left font-medium px-4 py-2">Model</th>
-            <th scope="col" className="text-left font-medium px-4 py-2">Provider</th>
-            <th scope="col" className="text-right font-medium px-4 py-2">Requests</th>
-            <th scope="col" className="text-right font-medium px-4 py-2">Tokens</th>
-            <th scope="col" className="text-right font-medium px-4 py-2">Failures</th>
-            <th scope="col" className="text-right font-medium px-4 py-2">Spend</th>
+          <tr className="border-b border-rule-soft">
+            <th scope="col" className="text-left t-section px-4 py-2.5">Model</th>
+            <th scope="col" className="text-left t-section px-4 py-2.5">Provider</th>
+            <th scope="col" className="text-right t-section px-4 py-2.5">Requests</th>
+            <th scope="col" className="text-right t-section px-4 py-2.5">Tokens</th>
+            <th scope="col" className="text-right t-section px-4 py-2.5">Failures</th>
+            <th scope="col" className="text-right t-section px-4 py-2.5">Spend</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((r) => (
-            <tr key={`${r.provider}/${r.model}`} className="border-b border-rule-soft last:border-0">
+            <tr key={`${r.provider}/${r.model}`} className="border-b border-rule-soft last:border-0 hover:bg-surface-2 transition-colors">
               <td className="px-4 py-2 font-medium">{r.model}</td>
               <td className="px-4 py-2 text-ink-soft">{r.provider}</td>
               <td className="px-4 py-2 text-right figure">{r.requests}</td>
