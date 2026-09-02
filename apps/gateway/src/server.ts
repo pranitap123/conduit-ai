@@ -4,6 +4,8 @@ import { closeDb, db } from './db/client.js';
 import { closeRedis, getRedis } from './lib/redis.js';
 import { logger } from './lib/logger.js';
 import { migrate } from './db/migrate.js';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const redis = await getRedis();
 await migrate();
@@ -15,6 +17,7 @@ const app = await buildApp({
   authSecret: env.authSecret,
   corsOrigin: env.corsOrigin,
   secureCookies: env.nodeEnv === 'production',
+  ...(env.staticRoot === null ? {} : { staticRoot: resolve(env.staticRoot) }),
 });
 
 /**

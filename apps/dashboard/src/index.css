@@ -1,0 +1,92 @@
+@import "tailwindcss";
+
+/*
+  Tollgate design tokens.
+
+  The product is a meter on a pipe. The visual language borrows from
+  instrumentation panels: a cool paper ground, hairline rules that separate
+  readings rather than boxes that decorate them, and tabular figures for
+  anything numeric so columns of numbers line up and can be compared by eye.
+
+  Monospace is used ONLY for figures and identifiers, where alignment carries
+  meaning. Labels are set in the sans face.
+*/
+@theme {
+  --color-paper:      #f4f6f4;
+  --color-surface:    #ffffff;
+  --color-surface-2:  #fafbfa;
+  --color-rule:       #dee2dd;
+  --color-rule-soft:  #eaedea;
+  --color-ink:        #141817;
+  --color-ink-soft:   #5a625f;
+  --color-ink-faint:  #8b9491;
+
+  --color-accent:     #0b5d4e;
+  --color-accent-soft:#e3efeb;
+  --color-cost:       #8a5a00;
+  --color-cost-soft:  #f6efe0;
+  --color-error:      #a32218;
+  --color-error-soft: #f8e8e6;
+  --color-cache:      #3a5fa8;
+  --color-cache-soft: #e7ecf6;
+
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+:root[data-theme="dark"] {
+  --color-paper:      #101413;
+  --color-surface:    #171c1b;
+  --color-surface-2:  #1c2221;
+  --color-rule:       #2a3230;
+  --color-rule-soft:  #222827;
+  --color-ink:        #e8ecea;
+  --color-ink-soft:   #9aa4a1;
+  --color-ink-faint:  #6b7572;
+
+  --color-accent:     #5ecfae;
+  --color-accent-soft:#16302a;
+  --color-cost:       #e0ab52;
+  --color-cost-soft:  #2e2617;
+  --color-error:      #e8776b;
+  --color-error-soft: #331d1a;
+  --color-cache:      #8fb0e8;
+  --color-cache-soft: #1a2334;
+}
+
+html { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "cv05" 1;
+}
+
+/* Figures line up in columns; this is why mono exists here. */
+.figure { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+/* One visible, high-contrast focus treatment everywhere. */
+:where(a, button, input, select, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* The one orchestrated motion in the product: request packets travelling the
+   pipe on the landing page. Not decoration — it is the product's diagram. */
+@keyframes flow { to { stroke-dashoffset: -24; } }
+.pipe-flow { stroke-dasharray: 3 9; animation: flow 1.4s linear infinite; }
+
+@keyframes pulse-in { from { opacity: 0; transform: translateY(4px); } }
+.enter { animation: pulse-in 240ms ease-out both; }

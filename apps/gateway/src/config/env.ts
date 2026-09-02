@@ -44,6 +44,8 @@ export const env = {
   /** Signs dashboard session tokens. Required in production only. */
   authSecret: optional('AUTH_SECRET', 'dev-only-insecure-secret'),
   corsOrigin: optional('CORS_ORIGIN', 'http://localhost:5173'),
+  /** Path to the built dashboard. Set in the container; unset in development. */
+  staticRoot: process.env.STATIC_ROOT ?? null,
 } as const;
 
 if (isProductionEnv() && env_authSecretIsDefault()) {

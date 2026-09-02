@@ -1,12 +1,17 @@
 {
   "name": "tollgate",
   "private": true,
-  "workspaces": ["apps/*"],
+  "workspaces": [
+    "apps/*"
+  ],
   "scripts": {
     "dev": "npm run dev -w gateway",
+    "dev:ui": "npm run dev -w dashboard",
+    "build": "npm run build -w gateway && npm run build -w dashboard",
     "test": "npm run test -w gateway",
-    "typecheck": "npm run typecheck -w gateway",
-    "lint": "eslint ."
+    "typecheck": "npm run typecheck -w gateway && npm run typecheck -w dashboard",
+    "migrate": "npm run migrate -w gateway",
+    "seed": "npm run seed -w gateway --"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

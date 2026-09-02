@@ -8,6 +8,7 @@ import { loggerOptions } from './lib/logger.js';
 import { healthRoutes } from './routes/health.js';
 import { gatewayRoutes } from './gateway/routes.js';
 import { dashboardRoutes } from './dashboard/routes.js';
+import { staticRoutes } from './routes/static.js';
 import { ProviderRegistry } from './providers/registry.js';
 import type { DB } from './db/types.js';
 
@@ -21,6 +22,8 @@ export interface AppDeps {
   authSecret?: string;
   corsOrigin?: string;
   secureCookies?: boolean;
+  /** Absolute path to the built dashboard. Omit to run API-only. */
+  staticRoot?: string;
 }
 
 /**
@@ -67,6 +70,10 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     cacheTtlSeconds: deps.cacheTtlSeconds ?? 300,
     upstreamTimeoutMs: deps.upstreamTimeoutMs ?? 30_000,
   });
+
+  if (deps.staticRoot !== undefined) {
+    await app.register(staticRoutes, { root: deps.staticRoot });
+  }
 
   return app;
 }
