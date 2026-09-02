@@ -11,7 +11,7 @@ import { RateLimiter } from '../limits/rateLimiter.js';
 import { ProviderRegistry } from '../providers/registry.js';
 import { ProviderError, type CompletionRequest, type TokenUsage } from '../providers/types.js';
 import { apiError } from './errors.js';
-import { recordUsage } from './usage.js';
+import { findReplay, isUniqueViolation, recordUsage } from './usage.js';
 
 const bodySchema = z.object({
   model: z.string().min(1).max(200),
@@ -75,12 +75,26 @@ export async function gatewayRoutes(app: FastifyInstance, deps: GatewayDeps): Pr
     const idempotencyKey = typeof request.headers['idempotency-key'] === 'string'
       ? request.headers['idempotency-key'] : null;
 
+    // ---- 2b. idempotent replay ------------------------------------------
+    // Scoped to org: two tenants may legitimately pick the same key string,
+    // and one must never receive the other's replayed response.
+    if (idempotencyKey !== null && body.stream !== true) {
+      const replay = await findReplay(deps.db, ctx.orgId, idempotencyKey);
+      if (replay !== null) {
+        reply.header('x-tollgate-idempotent-replay', 'true');
+        // Deliberately NOT re-recorded. The point of idempotency is that one
+        // logical request bills once, however many times it is retried.
+        return reply.code(replay.statusCode).send(replay.responseBody);
+      }
+    }
+
     // Shared tail: one ledger row per request, whatever happened.
     const finish = async (args: {
       status: RequestStatus; statusCode: number; provider: string;
       usage: TokenUsage | null; upstreamMs: number | null;
       cacheHit: boolean; streamed: boolean;
       errorCode?: string; errorMessage?: string;
+      responseBody?: unknown;
     }): Promise<void> => {
       const pricing = await lookupPricing(deps.db, args.provider, body.model);
       const cost = computeCost(args.usage, pricing);
@@ -102,7 +116,23 @@ export async function gatewayRoutes(app: FastifyInstance, deps: GatewayDeps): Pr
         errorCode: args.errorCode ?? null,
         errorMessage: args.errorMessage ?? null,
         idempotencyKey,
+        responseBody: args.responseBody ?? null,
       });
+    };
+
+    // A failure to write the ledger must not be swallowed, EXCEPT for the
+    // idempotency race, where losing the unique-index contest is the expected
+    // outcome rather than an error.
+    const finishTolerant = async (
+      args: Parameters<typeof finish>[0],
+    ): Promise<'written' | 'duplicate'> => {
+      try {
+        await finish(args);
+        return 'written';
+      } catch (err) {
+        if (isUniqueViolation(err)) return 'duplicate';
+        throw err;
+      }
     };
 
     // ---- 3. rate limit --------------------------------------------------
@@ -113,7 +143,7 @@ export async function gatewayRoutes(app: FastifyInstance, deps: GatewayDeps): Pr
     reply.header('x-ratelimit-remaining', String(rl.remaining));
     if (!rl.allowed) {
       reply.header('retry-after', String(rl.retryAfterSeconds));
-      await finish({
+      await finishTolerant({
         status: 'RATE_LIMITED', statusCode: 429, provider: 'none',
         usage: null, upstreamMs: null, cacheHit: false, streamed: false,
         errorCode: 'rate_limit_exceeded',
@@ -125,7 +155,7 @@ export async function gatewayRoutes(app: FastifyInstance, deps: GatewayDeps): Pr
     // ---- 4. resolve provider --------------------------------------------
     const provider = deps.registry.resolve(body.model);
     if (provider === null) {
-      await finish({
+      await finishTolerant({
         status: 'CLIENT_ERROR', statusCode: 404, provider: 'none',
         usage: null, upstreamMs: null, cacheHit: false, streamed: false,
         errorCode: 'model_not_found',
@@ -141,10 +171,11 @@ export async function gatewayRoutes(app: FastifyInstance, deps: GatewayDeps): Pr
         reply.header('x-tollgate-cache', 'HIT');
         // A cache hit costs nothing upstream, so cost is recorded as a known
         // zero — genuinely different from "we don't know what this cost".
-        await finish({
+        await finishTolerant({
           status: 'SUCCESS', statusCode: 200, provider: provider.name,
           usage: { promptTokens: 0, completionTokens: 0 },
           upstreamMs: 0, cacheHit: true, streamed: false,
+          responseBody: idempotencyKey === null ? null : hit,
         });
         return reply.code(200).send(hit);
       }
@@ -169,10 +200,22 @@ export async function gatewayRoutes(app: FastifyInstance, deps: GatewayDeps): Pr
       const result = await provider.complete(completion, controller.signal);
       const upstreamMs = Math.round(performance.now() - upstreamStart);
       await cache.set(ctx, completion, result);
-      await finish({
+
+      const outcome = await finishTolerant({
         status: 'SUCCESS', statusCode: 200, provider: provider.name,
         usage: result.usage, upstreamMs, cacheHit: false, streamed: false,
+        responseBody: idempotencyKey === null ? null : result,
       });
+
+      if (outcome === 'duplicate' && idempotencyKey !== null) {
+        // Lost the race: a concurrent identical request already committed.
+        // Return ITS response so both callers see the same bytes.
+        const winner = await findReplay(deps.db, ctx.orgId, idempotencyKey);
+        if (winner !== null) {
+          reply.header('x-tollgate-idempotent-replay', 'true');
+          return reply.code(winner.statusCode).send(winner.responseBody);
+        }
+      }
       return reply.code(200).send(result);
     } catch (err) {
       const upstreamMs = Math.round(performance.now() - upstreamStart);
@@ -185,7 +228,7 @@ export async function gatewayRoutes(app: FastifyInstance, deps: GatewayDeps): Pr
       const statusCode = aborted ? 504 : isProviderErr ? (err.statusCode ?? 502) : 502;
 
       request.log.error({ err, provider: provider.name }, 'upstream failed');
-      await finish({
+      await finishTolerant({
         status, statusCode, provider: provider.name,
         usage: null, upstreamMs, cacheHit: false, streamed: body.stream === true,
         errorCode: isProviderErr ? 'provider_error' : 'internal_error',

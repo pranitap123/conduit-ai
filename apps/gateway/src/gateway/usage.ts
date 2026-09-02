@@ -28,6 +28,7 @@ export interface UsageRecord {
   errorCode: string | null;
   errorMessage: string | null;
   idempotencyKey: string | null;
+  responseBody: unknown | null;
 }
 
 export async function recordUsage(db: Kysely<DB>, r: UsageRecord): Promise<string> {
@@ -59,6 +60,7 @@ export async function recordUsage(db: Kysely<DB>, r: UsageRecord): Promise<strin
       error_code: r.errorCode,
       error_message: r.errorMessage,
       idempotency_key: r.idempotencyKey,
+      response_body: r.responseBody === null ? null : JSON.stringify(r.responseBody),
     })
     .returning('id')
     .executeTakeFirstOrThrow();
@@ -77,13 +79,40 @@ export async function recordUsage(db: Kysely<DB>, r: UsageRecord): Promise<strin
  * Scoped to org_id: two tenants may legitimately use the same key string, and
  * one must never see the other's replayed result.
  */
-export async function findByIdempotencyKey(
+export interface ReplayableRequest {
+  id: string;
+  statusCode: number;
+  responseBody: unknown;
+  model: string;
+}
+
+export async function findReplay(
   db: Kysely<DB>, orgId: string, key: string,
-) {
-  return db
+): Promise<ReplayableRequest | null> {
+  const row = await db
     .selectFrom('requests')
-    .selectAll()
+    .select(['id', 'status_code', 'response_body', 'model'])
     .where('org_id', '=', orgId)
     .where('idempotency_key', '=', key)
+    .where('response_body', 'is not', null)
     .executeTakeFirst();
+
+  if (row === undefined) return null;
+  return {
+    id: row.id,
+    statusCode: row.status_code,
+    responseBody: row.response_body,
+    model: row.model,
+  };
+}
+
+/**
+ * Postgres unique-violation. Two concurrent requests carrying the same
+ * Idempotency-Key both miss the read above; the partial unique index lets
+ * exactly one insert succeed. The loser must NOT surface a 500 — it converts
+ * its failed insert into a replay of the winner.
+ */
+export function isUniqueViolation(err: unknown): boolean {
+  return typeof err === 'object' && err !== null && 'code' in err
+    && (err as { code?: unknown }).code === '23505';
 }

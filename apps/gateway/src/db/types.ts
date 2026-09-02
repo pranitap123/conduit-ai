@@ -75,6 +75,7 @@ export interface RequestsTable {
   error_code: string | null;
   error_message: string | null;
   idempotency_key: string | null;
+  response_body: ColumnType<unknown, string | null, string | null> | null;
   created_at: DefaultedTimestamp;
 }
 
