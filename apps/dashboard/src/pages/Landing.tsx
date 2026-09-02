@@ -1,10 +1,17 @@
 import { Link } from 'react-router-dom';
+import { Suspense, lazy, useState } from 'react';
 import { Mark } from '../components/Mark';
+
+const GatewayScene = lazy(() =>
+  import('../components/GatewayScene').then((m) => ({ default: m.GatewayScene })));
 
 /**
  * The hero is the product's own diagram, animated with the actual thing it
  * does: requests travelling a pipe through a gate that counts them. This is the
  * one place motion is used, and it is not decoration — it is the explanation.
+ *
+ * Kept as the fallback for the 3D scene: no WebGL, JS still loading, or the
+ * dynamic import failing all land here, so the hero is never blank.
  */
 function Pipe() {
   return (
@@ -104,7 +111,16 @@ export function Landing() {
               </Link>
             </div>
           </div>
-          <div className="bg-surface border border-rule p-4"><Pipe /></div>
+          {/*
+           * The hero visual: the 3D scene where it can run, the original
+           * diagram everywhere else — no WebGL, reduced-motion, slow network,
+           * or a failed dynamic import all resolve to the same fallback.
+           */}
+          <div className="bg-surface border border-rule p-4">
+            <Suspense fallback={<Pipe />}>
+              <GatewayHero />
+            </Suspense>
+          </div>
         </section>
 
         <section className="py-10 border-t border-rule">
@@ -147,4 +163,17 @@ export function Landing() {
       </footer>
     </div>
   );
+}
+
+/**
+ * GatewayScene reports, one tick after mount, whether WebGL is actually
+ * available — a check that cannot be expressed as a Suspense fallback because
+ * it isn't about the module loading, it's about the runtime environment. This
+ * wrapper holds that as real state, so "no WebGL" swaps to the SVG diagram in
+ * the same render rather than leaving an empty box.
+ */
+function GatewayHero() {
+  const [unsupported, setUnsupported] = useState(false);
+  if (unsupported) return <Pipe />;
+  return <GatewayScene onUnsupported={() => setUnsupported(true)} />;
 }
