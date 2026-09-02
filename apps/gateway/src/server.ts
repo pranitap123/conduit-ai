@@ -7,7 +7,15 @@ import { migrate } from './db/migrate.js';
 
 const redis = await getRedis();
 await migrate();
-const app = await buildApp({ db, redis });
+const app = await buildApp({
+  db, redis,
+  rateLimitPerMinute: env.rateLimitPerMinute,
+  cacheTtlSeconds: env.cacheTtlSeconds,
+  upstreamTimeoutMs: env.upstreamTimeoutMs,
+  authSecret: env.authSecret,
+  corsOrigin: env.corsOrigin,
+  secureCookies: env.nodeEnv === 'production',
+});
 
 /**
  * Graceful shutdown: stop accepting connections, let in-flight requests finish,

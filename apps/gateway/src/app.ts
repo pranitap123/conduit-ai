@@ -1,11 +1,13 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import helmet from '@fastify/helmet';
+import cors from '@fastify/cors';
 import { randomUUID } from 'node:crypto';
 import type { Redis } from 'ioredis';
 import type { Kysely } from 'kysely';
 import { loggerOptions } from './lib/logger.js';
 import { healthRoutes } from './routes/health.js';
 import { gatewayRoutes } from './gateway/routes.js';
+import { dashboardRoutes } from './dashboard/routes.js';
 import { ProviderRegistry } from './providers/registry.js';
 import type { DB } from './db/types.js';
 
@@ -16,6 +18,9 @@ export interface AppDeps {
   rateLimitPerMinute?: number;
   cacheTtlSeconds?: number;
   upstreamTimeoutMs?: number;
+  authSecret?: string;
+  corsOrigin?: string;
+  secureCookies?: boolean;
 }
 
 /**
@@ -40,7 +45,20 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   // JSON and SSE only — the dashboard is a separate static origin.
   await app.register(helmet, { contentSecurityPolicy: false });
 
+  // credentials: true is required for the session cookie to be sent from the
+  // dashboard origin. That makes the origin allowlist load-bearing — a wildcard
+  // here would let any site make authenticated requests on a user's behalf.
+  await app.register(cors, {
+    origin: [deps.corsOrigin ?? 'http://localhost:5173'],
+    credentials: true,
+  });
+
   await app.register(healthRoutes);
+  await app.register(dashboardRoutes, {
+    db: deps.db,
+    authSecret: deps.authSecret ?? 'dev-only-insecure-secret',
+    secureCookies: deps.secureCookies ?? false,
+  });
   await app.register(gatewayRoutes, {
     db: deps.db,
     redis: deps.redis,
