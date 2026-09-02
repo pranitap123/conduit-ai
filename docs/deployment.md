@@ -9,11 +9,41 @@ built dashboard. It needs a Postgres database and a Redis instance.
 |---|---|---|
 | `DATABASE_URL` | yes | Process refuses to start without it |
 | `REDIS_URL` | yes | Same |
-| `AUTH_SECRET` | yes in production | Signs session tokens. Rotating it signs everyone out |
+| `AUTH_SECRET` | **yes in production** | Signs session cookies. See below |
 | `CORS_ORIGIN` | no | Unused when the dashboard is served from the same origin |
 | `ENABLED_PROVIDERS` | no | Defaults to `mock`. Add `openai` to enable the real adapter |
 | `OPENAI_API_KEY` | only with `openai` enabled | Omitting it skips the provider rather than failing at request time |
 | `OPENAI_BASE_URL` | no | Point at Groq, Together, vLLM or any OpenAI-compatible endpoint |
+
+### AUTH_SECRET
+
+Session cookies are HMAC-signed with this value. Anyone who knows it can forge a
+session for any user in any organization — a full authentication bypass with no
+runtime symptom, because everything otherwise works normally.
+
+Startup in production therefore fails, with a non-zero exit and before the port
+opens, when `AUTH_SECRET` is:
+
+- missing or empty,
+- a known placeholder (`change-me-before-deploying`, `changeme`, `secret`,
+  the development fallback, and similar — matched case-insensitively),
+- shorter than 32 characters,
+- built from fewer than 8 distinct characters, which catches a padded
+  placeholder that clears the length bar.
+
+Generate one and never reuse it across environments:
+
+```bash
+openssl rand -base64 32
+```
+
+It is never committed: absent from `fly.toml`, blank in `.env.example`, and
+`docker-compose.yml` has no default for it — compose refuses to start the app
+profile until it is set. Rotating it signs every user out, which is the intended
+behaviour after a suspected leak.
+
+Covered by `src/config/__tests__/env.test.ts` (the rules) and
+`startup.test.ts` (the process genuinely refuses to boot).
 
 ## Fly.io
 

@@ -12,6 +12,9 @@ primary_region = "sin"          # closest region to the operator
 [build]
   dockerfile = "Dockerfile"
 
+# AUTH_SECRET is deliberately absent from [env]: this file is committed, and
+# [env] values are not secrets. Set it with `fly secrets set` (see
+# docs/deployment.md). The app refuses to start in production without it.
 [env]
   NODE_ENV = "production"
   PORT = "3000"

@@ -24,6 +24,22 @@ ADR-007.
 refuse cross-tenant reads even if the application were wrong, and is the
 strongest available upgrade. ADR-007 says why it is deferred.
 
+## Threat: a deployed placeholder signing secret
+Session cookies are HMAC-signed with `AUTH_SECRET`. A publicly known value there
+lets anyone forge a session for any user in any organization, and nothing about
+the running system looks wrong.
+
+Production startup rejects a secret that is missing, a known placeholder, under
+32 characters, or built from fewer than 8 distinct characters. The process exits
+non-zero before opening a port. The development fallback is itself on the
+rejected list, so it cannot become a production secret by omission. No default
+exists in `docker-compose.yml`, `fly.toml`, or `.env.example`. Error messages
+never echo the rejected value, since startup errors reach logs and crash
+reports.
+
+**Known limitation:** the entropy check is a heuristic, not a measurement. A
+32-character secret from a weak generator with 8 distinct characters passes.
+
 ## Threat: session theft
 Session tokens are HMAC-SHA256 over `userId.expiry`, in an `HttpOnly`,
 `SameSite=Lax` cookie, `Secure` in production. HttpOnly means an XSS bug cannot

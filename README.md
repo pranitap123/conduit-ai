@@ -42,10 +42,11 @@ actually implemented — this table is the source of truth, not the prose above.
 | OpenTelemetry tracing | Not started (V2) | — |
 | BullMQ background jobs | Not started (V2) | — |
 | Rate limiting on login and signup | Built | 1 test; fails open by design |
+| Production secret validation (fail-fast) | Built | 23 tests inc. real process boot |
 | PII redaction of prompt content | Not implemented; not claimed | — |
 | Postgres row-level security | Not implemented (ADR-007 explains) | — |
 
-**Test suite: 78 passing**, against a live Postgres and Redis. `npm test`.
+**Test suite: 101 passing**, against a live Postgres and Redis. `npm test`.
 
 ## Running it
 
