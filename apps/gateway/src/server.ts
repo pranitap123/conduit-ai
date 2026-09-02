@@ -1,18 +1,25 @@
 import { buildApp } from './app.js';
 import { env } from './config/env.js';
+import { closeDb, db } from './db/client.js';
+import { closeRedis, getRedis } from './lib/redis.js';
 import { logger } from './lib/logger.js';
+import { migrate } from './db/migrate.js';
 
-const app = buildApp();
+const redis = await getRedis();
+await migrate();
+const app = await buildApp({ db, redis });
 
 /**
- * Graceful shutdown: stop accepting new connections, let in-flight requests
- * finish, then exit. A gateway that hard-exits mid-request leaves the caller
- * with a dropped connection and an unrecorded usage row.
+ * Graceful shutdown: stop accepting connections, let in-flight requests finish,
+ * then release the pools. A gateway that hard-exits mid-request leaves the
+ * caller with a dropped connection AND an unwritten ledger row.
  */
 async function shutdown(signal: string): Promise<void> {
   logger.info({ signal }, 'shutting down');
   try {
     await app.close();
+    await closeRedis();
+    await closeDb();
     process.exit(0);
   } catch (err) {
     logger.error({ err }, 'error during shutdown');
@@ -23,9 +30,9 @@ async function shutdown(signal: string): Promise<void> {
 process.on('SIGTERM', () => void shutdown('SIGTERM'));
 process.on('SIGINT', () => void shutdown('SIGINT'));
 
-app
-  .listen({ port: env.port, host: '0.0.0.0' })
-  .catch((err: unknown) => {
-    logger.error({ err }, 'failed to start');
-    process.exit(1);
-  });
+try {
+  await app.listen({ port: env.port, host: '0.0.0.0' });
+} catch (err) {
+  logger.error({ err }, 'failed to start');
+  process.exit(1);
+}
