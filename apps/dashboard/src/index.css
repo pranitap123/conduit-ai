@@ -4,14 +4,57 @@
   Tollgate design tokens.
 
   The product is a meter on a pipe. The visual language borrows from
-  instrumentation panels: a cool paper ground, hairline rules that separate
-  readings rather than boxes that decorate them, and tabular figures for
-  anything numeric so columns of numbers line up and can be compared by eye.
+  instrumentation panels: hairline rules that separate readings rather than
+  boxes that decorate them, and tabular figures for anything numeric so columns
+  of numbers line up and can be compared by eye.
 
   Monospace is used ONLY for figures and identifiers, where alignment carries
   meaning. Labels are set in the sans face.
+
+  DARK IS THE DEFAULT. An operations console is read in a dim room next to a
+  terminal, and the ink-on-dark ground keeps the figures — which are the point —
+  as the brightest thing on screen. Light remains available and complete; it is
+  an override, not an afterthought.
+
+  The dark ground is layered rather than flat black: paper < surface <
+  surface-2. Depth is carried by those three steps and by hairline rules, not by
+  shadows or blur, so the panel edges stay crisp at any zoom.
 */
 @theme {
+  /* Ground, in three steps. Never pure black — #000 crushes the rules and
+     makes the accent look like it is glowing. */
+  --color-paper:      #0c100f;
+  --color-surface:    #121716;
+  --color-surface-2:  #182120;
+
+  /* Rules do the separating. Two weights: one visible, one barely there. */
+  --color-rule:       #273230;
+  --color-rule-soft:  #1d2726;
+
+  /* Three ink weights, spaced far enough apart to build hierarchy without
+     changing size. This spacing is what makes the interface feel typeset. */
+  --color-ink:        #e7ecea;
+  --color-ink-soft:   #98a4a0;
+  --color-ink-faint:  #6c7975;
+
+  /* One accent. It marks the active thing and nothing else. */
+  --color-accent:     #56d1ab;
+  --color-accent-soft:#12302a;
+
+  /* Semantic colours, each earning its place: money, failure, cache. */
+  --color-cost:       #e0ab52;
+  --color-cost-soft:  #2c2415;
+  --color-error:      #ef7c6f;
+  --color-error-soft: #33201c;
+  --color-cache:      #8fb0e8;
+  --color-cache-soft: #182134;
+
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+/* Light theme: the original instrumentation palette, cool paper ground. */
+:root[data-theme="light"] {
   --color-paper:      #f4f6f4;
   --color-surface:    #ffffff;
   --color-surface-2:  #fafbfa;
@@ -29,33 +72,10 @@
   --color-error-soft: #f8e8e6;
   --color-cache:      #3a5fa8;
   --color-cache-soft: #e7ecf6;
-
-  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
 }
 
-:root[data-theme="dark"] {
-  --color-paper:      #101413;
-  --color-surface:    #171c1b;
-  --color-surface-2:  #1c2221;
-  --color-rule:       #2a3230;
-  --color-rule-soft:  #222827;
-  --color-ink:        #e8ecea;
-  --color-ink-soft:   #9aa4a1;
-  --color-ink-faint:  #6b7572;
-
-  --color-accent:     #5ecfae;
-  --color-accent-soft:#16302a;
-  --color-cost:       #e0ab52;
-  --color-cost-soft:  #2e2617;
-  --color-error:      #e8776b;
-  --color-error-soft: #331d1a;
-  --color-cache:      #8fb0e8;
-  --color-cache-soft: #1a2334;
-}
-
-html { color-scheme: light; }
-:root[data-theme="dark"] { color-scheme: dark; }
+html { color-scheme: dark; }
+:root[data-theme="light"] { color-scheme: light; }
 
 body {
   background: var(--color-paper);
@@ -67,6 +87,38 @@ body {
 
 /* Figures line up in columns; this is why mono exists here. */
 .figure { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+/* ---------------------------------------------------------------- type scale
+
+   Four roles, deliberately few. Hierarchy comes from weight, colour and
+   letter-spacing far more than from size — an operations console that shouts
+   in 48px headings wastes the rows it exists to show.
+*/
+
+/* Page title. One per screen. */
+.t-page {
+  font-size: 21px;
+  line-height: 1.15;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+/* Section heading inside a panel or drawer. Uppercase and tracked out, so it
+   reads as a divider rather than as content competing with the values. */
+.t-section {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--color-ink-faint);
+}
+
+/* The label above a reading or beside a field. */
+.t-label { font-size: 12px; color: var(--color-ink-soft); }
+
+/* Supporting note under a reading. Never carries information found nowhere
+   else — it qualifies the figure above it. */
+.t-meta { font-size: 12px; color: var(--color-ink-faint); }
 
 /* One visible, high-contrast focus treatment everywhere. */
 :where(a, button, input, select, [tabindex]):focus-visible {
@@ -90,3 +142,12 @@ body {
 
 @keyframes pulse-in { from { opacity: 0; transform: translateY(4px); } }
 .enter { animation: pulse-in 240ms ease-out both; }
+
+/* A right-hand drawer should arrive from the right. Short and eased-out, so it
+   reads as the panel catching up with the click rather than as an effect. */
+@keyframes slide-in-right { from { opacity: 0; transform: translateX(18px); } }
+.slide-in { animation: slide-in-right 200ms cubic-bezier(0.2, 0.7, 0.3, 1) both; }
+
+/* Depth for the one surface that genuinely floats above the page. Kept to a
+   single soft shadow plus the border; no blur, no glow. */
+.drawer-lift { box-shadow: -16px 0 40px -12px rgb(0 0 0 / 0.45); }
