@@ -45,7 +45,11 @@ export class MockProvider implements LLMProvider {
   }
 
   async complete(req: CompletionRequest, signal: AbortSignal): Promise<CompletionResult> {
-    await sleep(req.model === 'mock-slow' ? SLOW_LATENCY_MS : LATENCY_MS, signal);
+    // Varied latency so p50/p95 on the dashboard are meaningful rather than flat.
+    const base = req.model === 'mock-slow' ? SLOW_LATENCY_MS
+      : req.model === 'mock-large' ? LATENCY_MS * 3
+      : LATENCY_MS;
+    await sleep(base + Math.random() * base * 0.8, signal);
 
     if (req.model === 'mock-fail-retryable') {
       throw new ProviderError('mock upstream overloaded', 'mock', true, 503);
