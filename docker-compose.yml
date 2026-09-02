@@ -22,5 +22,22 @@ services:
       timeout: 3s
       retries: 10
 
+  # The full application, built from source. Start Postgres and Redis alone with
+  # `docker compose up postgres redis` when running the app on the host instead.
+  gateway:
+    build: .
+    profiles: ["app"]
+    ports: ["3000:3000"]
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://tollgate:tollgate@postgres:5432/tollgate
+      REDIS_URL: redis://redis:6379
+      AUTH_SECRET: ${AUTH_SECRET:-change-me-before-deploying}
+      CORS_ORIGIN: http://localhost:3000
+      ENABLED_PROVIDERS: mock
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
 volumes:
   pgdata:

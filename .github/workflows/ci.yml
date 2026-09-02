@@ -7,15 +7,54 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    # Dummy values: these steps do not connect to anything. env.ts throws on a
-    # missing var at import time, and vitest imports the module graph.
+
+    # Real Postgres and Redis, not mocks. The tests that matter most — tenant
+    # isolation, rate-limit concurrency, the idempotency race — are only
+    # meaningful against a real database and a real Redis.
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: tollgate
+          POSTGRES_PASSWORD: tollgate
+          POSTGRES_DB: tollgate
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U tollgate"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+
     env:
-      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+      DATABASE_URL: postgresql://tollgate:tollgate@localhost:5432/tollgate
       REDIS_URL: redis://localhost:6379
+
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: '22', cache: 'npm' }
+
       - run: npm ci
-      - run: npm run typecheck
-      - run: npm test
+
+      - name: Apply migrations
+        run: npm run migrate -w gateway
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build -w gateway && npm run build -w dashboard
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Proves the production image builds. Not pushed anywhere.
+      - run: docker build -t tollgate:ci .
