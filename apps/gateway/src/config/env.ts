@@ -34,7 +34,24 @@ export const env = {
     .filter(Boolean),
 
   openaiApiKey: process.env.OPENAI_API_KEY ?? null,
-  anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? null,
+  /** Any OpenAI-compatible endpoint: Groq, Together, vLLM, Ollama, LiteLLM. */
+  openaiBaseUrl: process.env.OPENAI_BASE_URL ?? null,
+
+  rateLimitPerMinute: Number(optional('RATE_LIMIT_PER_MINUTE', '600')),
+  cacheTtlSeconds: Number(optional('CACHE_TTL_SECONDS', '300')),
+  upstreamTimeoutMs: Number(optional('UPSTREAM_TIMEOUT_MS', '30000')),
+
+  /** Signs dashboard session tokens. Required in production only. */
+  authSecret: optional('AUTH_SECRET', 'dev-only-insecure-secret'),
+  corsOrigin: optional('CORS_ORIGIN', 'http://localhost:5173'),
 } as const;
+
+if (isProductionEnv() && env_authSecretIsDefault()) {
+  throw new Error('AUTH_SECRET must be set in production');
+}
+function isProductionEnv(): boolean { return (process.env.NODE_ENV ?? '') === 'production'; }
+function env_authSecretIsDefault(): boolean {
+  return (process.env.AUTH_SECRET ?? '') === '';
+}
 
 export const isProduction = env.nodeEnv === 'production';
