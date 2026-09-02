@@ -22,8 +22,6 @@ services:
       timeout: 3s
       retries: 10
 
-  # The full application, built from source. Start Postgres and Redis alone with
-  # `docker compose up postgres redis` when running the app on the host instead.
   gateway:
     build: .
     profiles: ["app"]
@@ -32,10 +30,7 @@ services:
       NODE_ENV: production
       DATABASE_URL: postgresql://tollgate:tollgate@postgres:5432/tollgate
       REDIS_URL: redis://redis:6379
-      # No default, deliberately. `:?` makes compose refuse to start with a
-      # message instead of silently substituting a placeholder that the
-      # application would then reject at runtime.
-      AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET before running the app profile - generate one with: openssl rand -base64 32}
+      AUTH_SECRET: ${AUTH_SECRET}
       CORS_ORIGIN: http://localhost:3000
       ENABLED_PROVIDERS: mock
     depends_on:
