@@ -25,52 +25,58 @@ export function Auth({ mode }: { mode: 'login' | 'signup' }) {
   };
 
   return (
-    <div className="min-h-dvh flex items-center justify-center p-4">
-      <div className="w-full max-w-sm">
-        <Link to="/" className="flex items-center gap-2 text-ink mb-6">
-          <Mark /><b className="text-[15px] tracking-tight">Conduit</b>
-        </Link>
+    <div className="min-h-dvh flex items-center justify-center p-6 bg-bg">
+      <div className="w-full max-w-[400px] animate-in">
+        <div className="bg-surface border border-rule p-8 sm:p-10">
+          <Link to="/" className="flex justify-center mb-8">
+            <div className="w-12 h-12 border border-rule flex items-center justify-center text-ink">
+              <Mark size={22} />
+            </div>
+          </Link>
 
-        <h1 className="text-[20px] font-semibold tracking-tight">
-          {mode === 'login' ? 'Sign in' : 'Create an organization'}
-        </h1>
-        <p className="mt-1 mb-6 text-[13px] text-ink-soft">
-          {mode === 'login'
-            ? 'Your gateway traffic, spend and keys.'
-            : 'You get an organization, a default project, and somewhere to create your first key.'}
-        </p>
+          <header className="mb-8 text-center">
+            <h1 className="text-[22px] font-semibold tracking-tight text-ink mb-2">
+              {mode === 'login' ? 'Sign in to Conduit' : 'Provision a gateway'}
+            </h1>
+            <p className="text-[14px] text-ink-soft leading-relaxed">
+              {mode === 'login'
+                ? 'Authenticate to reach your control plane.'
+                : 'Creates an organization and a default routing project.'}
+            </p>
+          </header>
 
-        <form
-          className="flex flex-col gap-4"
-          onSubmit={(e) => { e.preventDefault(); void submit(); }}
-        >
-          {mode === 'signup' && (
-            <Field label="Organization name" value={orgName} onChange={setOrgName} required placeholder="Acme" />
-          )}
-          <Field
-            label="Email" type="email" value={email} onChange={setEmail}
-            autoComplete="email" required placeholder="you@company.com"
-          />
-          <Field
-            label="Password" type="password" value={password} onChange={setPassword}
-            autoComplete={mode === 'login' ? 'current-password' : 'new-password'} required
-            {...(mode === 'signup' ? { hint: 'At least 10 characters.' } : {})}
-          />
+          <form className="flex flex-col gap-5" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
+            {mode === 'signup' && (
+              <Field label="Organization name" value={orgName} onChange={setOrgName} required placeholder="Acme Corp" />
+            )}
+            <Field label="Work email" type="email" value={email} onChange={setEmail} autoComplete="email" required placeholder="admin@domain.com" />
+            <Field
+              label="Password" type="password" value={password} onChange={setPassword}
+              autoComplete={mode === 'login' ? 'current-password' : 'new-password'} required
+              {...(mode === 'signup' ? { hint: 'Minimum 10 characters.' } : {})}
+            />
 
-          {error !== null && <p className="text-[13px] text-error" role="alert">{error}</p>}
+            {error !== null && (
+              <p className="text-[14px] text-error font-medium" role="alert">{error}</p>
+            )}
 
-          <Button type="submit" variant="primary" disabled={busy}>
-            {busy ? 'Working' : mode === 'login' ? 'Sign in' : 'Create organization'}
-          </Button>
-        </form>
+            <div className="pt-1">
+              <div className="w-full [&>button]:w-full">
+                <Button type="submit" variant="primary" disabled={busy}>
+                  {busy ? 'Authenticating…' : mode === 'login' ? 'Sign in' : 'Create workspace'}
+                </Button>
+              </div>
+            </div>
+          </form>
+        </div>
 
-        <p className="mt-5 text-[13px] text-ink-soft">
+        <div className="mt-6 text-center text-[14px] text-ink-soft">
           {mode === 'login' ? (
-            <>No account? <Link to="/signup" className="text-accent underline underline-offset-2">Create an organization</Link></>
+            <>New to Conduit? <Link to="/signup" className="text-ink font-medium hover:text-accent transition-colors">Create an organization</Link></>
           ) : (
-            <>Already have one? <Link to="/login" className="text-accent underline underline-offset-2">Sign in</Link></>
+            <>Already have an account? <Link to="/login" className="text-ink font-medium hover:text-accent transition-colors">Sign in</Link></>
           )}
-        </p>
+        </div>
       </div>
     </div>
   );
