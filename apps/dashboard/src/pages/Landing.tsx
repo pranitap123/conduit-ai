@@ -38,7 +38,7 @@ function Pipe() {
       {/* The gate */}
       <rect x="288" y="52" width="144" height="116" fill="var(--color-surface)" stroke="var(--color-accent)" strokeWidth="1.4" />
       <text x="360" y="76" textAnchor="middle" fontSize="12" fontWeight="600"
-        fill="var(--color-accent)" fontFamily="var(--font-sans)">Tollgate</text>
+        fill="var(--color-accent)" fontFamily="var(--font-sans)">Conduit</text>
       {['authenticate', 'rate limit', 'cache', 'meter', 'record'].map((t, i) => (
         <text key={t} x="360" y={96 + i * 15} textAnchor="middle" fontSize="10.5"
           fill="var(--color-ink-soft)" fontFamily="var(--font-mono)">{t}</text>
@@ -83,7 +83,7 @@ export function Landing() {
     <div className="min-h-dvh">
       <header className="border-b border-rule bg-surface">
         <div className="max-w-[1080px] mx-auto px-5 h-14 flex items-center justify-between">
-          <span className="flex items-center gap-2 text-ink"><Mark /><b className="text-[15px] tracking-tight">Tollgate</b></span>
+          <span className="flex items-center gap-2 text-ink"><Mark /><b className="text-[15px] tracking-tight">Conduit</b></span>
           <nav className="flex items-center gap-4 text-[13px]">
             <Link to="/login" className="text-ink-soft hover:text-ink">Sign in</Link>
             <Link to="/signup" className="px-3 h-8 leading-8 bg-accent text-paper font-medium">Create organization</Link>
@@ -98,7 +98,7 @@ export function Landing() {
               Every AI request, accounted for
             </h1>
             <p className="mt-4 text-[15px] leading-relaxed text-ink-soft max-w-[52ch]">
-              Point your applications at Tollgate instead of the provider. It authenticates
+              Point your applications at Conduit instead of the provider. It authenticates
               them, holds them to their limits, serves what it can from cache, and writes down
               exactly what each request cost.
             </p>
@@ -139,7 +139,7 @@ export function Landing() {
           <div>
             <h2 className="text-[20px] font-semibold tracking-tight">One change to your client</h2>
             <p className="mt-2 text-[13px] leading-relaxed text-ink-soft max-w-[52ch]">
-              Tollgate speaks the OpenAI chat completions format. Change the base URL and the
+              Conduit speaks the OpenAI chat completions format. Change the base URL and the
               key; everything else stays as it is.
             </p>
           </div>
@@ -157,7 +157,7 @@ export function Landing() {
 
       <footer className="border-t border-rule mt-6">
         <div className="max-w-[1080px] mx-auto px-5 py-6 text-[12px] text-ink-faint flex flex-wrap gap-x-4 gap-y-2 justify-between">
-          <span>Tollgate — an LLM gateway and usage meter.</span>
+          <span>Conduit — an LLM gateway and usage meter.</span>
           <span>Built as an engineering portfolio project. Not a commercial service.</span>
         </div>
       </footer>

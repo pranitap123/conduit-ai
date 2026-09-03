@@ -28,7 +28,7 @@ export function Auth({ mode }: { mode: 'login' | 'signup' }) {
     <div className="min-h-dvh flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <Link to="/" className="flex items-center gap-2 text-ink mb-6">
-          <Mark /><b className="text-[15px] tracking-tight">Tollgate</b>
+          <Mark /><b className="text-[15px] tracking-tight">Conduit</b>
         </Link>
 
         <h1 className="text-[20px] font-semibold tracking-tight">

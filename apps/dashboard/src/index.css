@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /*
-  Tollgate design tokens.
+  Conduit design tokens.
 
   The product is a meter on a pipe. The visual language borrows from
   instrumentation panels: hairline rules that separate readings rather than
@@ -11,10 +11,15 @@
   Monospace is used ONLY for figures and identifiers, where alignment carries
   meaning. Labels are set in the sans face.
 
-  DARK IS THE DEFAULT. An operations console is read in a dim room next to a
-  terminal, and the ink-on-dark ground keeps the figures — which are the point —
-  as the brightest thing on screen. Light remains available and complete; it is
-  an override, not an afterthought.
+  Both themes are first-class: each has its own deliberately chosen ground,
+  rule, ink and accent — light is not dark inverted, and dark is not light with
+  the lights off. The dark accent (#56d1ab) and light accent (#0b5d4e) are
+  different hues at different weights, chosen to read correctly against their
+  own ground, not derived from one another by a formula. DARK IS THE DEFAULT
+  because an operations console is read in a dim room next to a terminal, and
+  the ink-on-dark ground keeps the figures — which are the point — as the
+  brightest thing on screen. That is a default, not a hierarchy: switching to
+  light loses nothing, in polish or in coverage.
 
   The dark ground is layered rather than flat black: paper < surface <
   surface-2. Depth is carried by those three steps and by hairline rules, not by
@@ -53,7 +58,9 @@
   --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
 }
 
-/* Light theme: the original instrumentation palette, cool paper ground. */
+/* Light theme: its own deliberate palette — a cool paper ground with a deep,
+   saturated accent chosen to hold contrast on white, not a formula applied to
+   the dark tokens above. */
 :root[data-theme="light"] {
   --color-paper:      #f4f6f4;
   --color-surface:    #ffffff;
@@ -151,3 +158,46 @@ body {
 /* Depth for the one surface that genuinely floats above the page. Kept to a
    single soft shadow plus the border; no blur, no glow. */
 .drawer-lift { box-shadow: -16px 0 40px -12px rgb(0 0 0 / 0.45); }
+
+/* -------------------------------------------------------- scroll choreography
+
+   No animation library: an IntersectionObserver (see useReveal.ts) toggles
+   [data-revealed] once, and these two rules do the rest. Kept to opacity and a
+   small translate so layout never shifts and reduced-motion users lose only
+   the fade, never the content.
+*/
+[data-reveal] {
+  opacity: 0;
+  transform: translateY(14px);
+  transition: opacity 520ms cubic-bezier(0.16, 1, 0.3, 1), transform 520ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+[data-reveal][data-revealed="true"] { opacity: 1; transform: none; }
+
+/* Stagger a group of reveals by giving each child an index via inline
+   --stagger-i; a delay of 70ms per step reads as a sequence, not a flicker. */
+[data-reveal-group] > [data-reveal] { transition-delay: calc(var(--stagger-i, 0) * 70ms); }
+
+@keyframes hero-in {
+  from { opacity: 0; transform: translateY(10px); }
+}
+.hero-line { opacity: 0; animation: hero-in 640ms cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+/* A card that lifts a single physical step on hover — never scale, which
+   distorts type, and never a shadow that reads as glow. */
+.lift {
+  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1), border-color 180ms ease;
+}
+.lift:hover { transform: translateY(-2px); border-color: var(--color-ink-faint); }
+
+/* Traffic packets on the landing diagram's provider connections — the same
+   device as .pipe-flow, reused so the whole page reads as one instrument. */
+@keyframes flow-slow { to { stroke-dashoffset: -32; } }
+.pipe-flow-slow { stroke-dasharray: 2 10; animation: flow-slow 2.2s linear infinite; }
+
+/* A soft, slow pulse marking the gateway itself as the active element in the
+   diagram — attention without motion sickness. */
+@keyframes gate-pulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+.gate-pulse { animation: gate-pulse 2.6s ease-in-out infinite; }

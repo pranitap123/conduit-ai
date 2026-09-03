@@ -44,7 +44,7 @@ export function Shell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[208px_1fr]">
       <header className="lg:hidden flex items-center justify-between h-12 px-4 border-b border-rule bg-surface">
-        <span className="flex items-center gap-2 text-ink"><Mark /><b className="text-[14px]">Tollgate</b></span>
+        <span className="flex items-center gap-2 text-ink"><Mark /><b className="text-[14px]">Conduit</b></span>
         <button
           onClick={() => setNavOpen((v) => !v)}
           aria-expanded={navOpen}
@@ -59,7 +59,7 @@ export function Shell({ children }: { children: ReactNode }) {
         aria-label="Sections"
       >
         <div className="hidden lg:flex items-center gap-2 h-14 px-4 text-ink border-b border-rule-soft">
-          <Mark /><b className="text-[14px] tracking-tight">Tollgate</b>
+          <Mark /><b className="text-[14px] tracking-tight">Conduit</b>
         </div>
 
         <ul className="p-2 lg:pt-3">
