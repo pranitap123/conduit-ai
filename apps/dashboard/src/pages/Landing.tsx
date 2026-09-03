@@ -5,175 +5,130 @@ import { Mark } from '../components/Mark';
 const GatewayScene = lazy(() =>
   import('../components/GatewayScene').then((m) => ({ default: m.GatewayScene })));
 
-/**
- * The hero is the product's own diagram, animated with the actual thing it
- * does: requests travelling a pipe through a gate that counts them. This is the
- * one place motion is used, and it is not decoration — it is the explanation.
- *
- * Kept as the fallback for the 3D scene: no WebGL, JS still loading, or the
- * dynamic import failing all land here, so the hero is never blank.
- */
-function Pipe() {
+function FallbackHero() {
   return (
-    <svg viewBox="0 0 720 220" className="w-full h-auto" role="img"
-      aria-label="Applications send requests through the gateway, which meters, limits and caches them before forwarding to model providers.">
-      <g stroke="var(--color-rule)" strokeWidth="1">
-        <line x1="0" y1="60" x2="720" y2="60" />
-        <line x1="0" y1="160" x2="720" y2="160" />
-      </g>
-
-      {/* Left: applications */}
-      {[95, 130].map((y, i) => (
-        <g key={y}>
-          <rect x="8" y={y - 13} width="118" height="26" fill="var(--color-surface)" stroke="var(--color-rule)" />
-          <text x="67" y={y + 4} textAnchor="middle" fontSize="11.5" fill="var(--color-ink-soft)"
-            fontFamily="var(--font-sans)">{i === 0 ? 'Your API' : 'Your workers'}</text>
-        </g>
-      ))}
-
-      {/* Inbound flow */}
-      <path d="M126 95 H286 M126 130 H286" stroke="var(--color-accent)" strokeWidth="1.4"
-        className="pipe-flow" fill="none" />
-
-      {/* The gate */}
-      <rect x="288" y="52" width="144" height="116" fill="var(--color-surface)" stroke="var(--color-accent)" strokeWidth="1.4" />
-      <text x="360" y="76" textAnchor="middle" fontSize="12" fontWeight="600"
-        fill="var(--color-accent)" fontFamily="var(--font-sans)">Conduit</text>
-      {['authenticate', 'rate limit', 'cache', 'meter', 'record'].map((t, i) => (
-        <text key={t} x="360" y={96 + i * 15} textAnchor="middle" fontSize="10.5"
-          fill="var(--color-ink-soft)" fontFamily="var(--font-mono)">{t}</text>
-      ))}
-
-      {/* Outbound flow */}
-      <path d="M432 95 H586 M432 130 H586" stroke="var(--color-accent)" strokeWidth="1.4"
-        className="pipe-flow" fill="none" />
-
-      {/* Right: providers */}
-      {[95, 130].map((y, i) => (
-        <g key={y}>
-          <rect x="588" y={y - 13} width="124" height="26" fill="var(--color-surface)" stroke="var(--color-rule)" />
-          <text x="650" y={y + 4} textAnchor="middle" fontSize="11.5" fill="var(--color-ink-soft)"
-            fontFamily="var(--font-sans)">{i === 0 ? 'Model provider' : 'Fallback provider'}</text>
-        </g>
-      ))}
-
-      <text x="360" y="196" textAnchor="middle" fontSize="11" fill="var(--color-ink-faint)"
-        fontFamily="var(--font-sans)">Every request counted, priced and kept</text>
-    </svg>
+    <div className="w-full h-[320px] sm:h-[420px] flex items-center justify-center border border-rule bg-surface relative overflow-hidden">
+      <div className="absolute inset-0 bg-[linear-gradient(var(--color-rule)_1px,transparent_1px),linear-gradient(90deg,var(--color-rule)_1px,transparent_1px)] bg-[size:36px_36px] opacity-40" />
+      <div className="relative z-10 w-16 h-16 border border-rule bg-surface-2 flex items-center justify-center pulse-ring">
+        <Mark size={30} />
+      </div>
+    </div>
   );
 }
 
-const CAPABILITIES: Array<[string, string]> = [
-  ['Spend you can trust',
-   'Costs are computed from provider-reported token counts in exact decimal arithmetic, never floating point. A request whose cost is unknown is shown as unknown, not as zero.'],
-  ['Limits that hold under load',
-   'Rate limiting runs as a single atomic Redis script, so concurrent requests cannot slip past the limit together. A sliding window means no cliff at the minute boundary.'],
-  ['A cache that cannot leak',
-   'Cache keys are namespaced by organization and project before anything else, so two tenants sending the same prompt never see each other\'s response.'],
-  ['Retries that bill once',
-   'Send an Idempotency-Key and a retry returns the original response byte for byte, without a second charge — even when several retries arrive at the same moment.'],
-  ['Failures on the record',
-   'Rate-limited, timed-out and provider-failed requests are all written to the ledger. A dashboard that only counts successes disagrees with your invoice.'],
-  ['Streaming, properly',
-   'Responses stream through as server-sent events, with client disconnects cancelling the upstream call so you stop paying for tokens nobody will read.'],
+const CAPABILITIES = [
+  { title: 'Zero-leak caching', body: 'Cache keys are strictly namespaced by organization and project. Tenant prompts never bleed across boundaries.' },
+  { title: 'Atomic rate limiting', body: 'Implemented via single atomic Redis scripts. No concurrency slip-ups under heavy production load.' },
+  { title: 'Idempotent retries', body: 'Send an Idempotency-Key and retries return the exact original response byte-for-byte, billed only once.' },
+  { title: 'True streaming', body: 'Responses stream as SSE. Client disconnects instantly cancel upstream calls, halting runaway token spend.' },
+  { title: 'Exact-precision spend', body: 'Costs computed from provider-reported token counts using strict decimal arithmetic. No floating-point drift.' },
+  { title: 'Ledger-grade telemetry', body: 'Rate limits, timeouts, and upstream failures are recorded instantly. Complete observability, zero dropped logs.' },
 ];
 
 export function Landing() {
   return (
-    <div className="min-h-dvh">
-      <header className="border-b border-rule bg-surface">
-        <div className="max-w-[1080px] mx-auto px-5 h-14 flex items-center justify-between">
-          <span className="flex items-center gap-2 text-ink"><Mark /><b className="text-[15px] tracking-tight">Conduit</b></span>
-          <nav className="flex items-center gap-4 text-[13px]">
-            <Link to="/login" className="text-ink-soft hover:text-ink">Sign in</Link>
-            <Link to="/signup" className="px-3 h-8 leading-8 bg-accent text-paper font-medium">Create organization</Link>
+    <div className="min-h-dvh flex flex-col bg-bg">
+      <header className="fixed top-0 inset-x-0 z-50 bg-bg/95 border-b border-rule">
+        <div className="max-w-6xl mx-auto px-6 h-18 flex items-center justify-between">
+          <span className="flex items-center gap-2.5 text-ink">
+            <Mark size={22} />
+            <b className="text-[18px] tracking-tight font-semibold">Conduit</b>
+          </span>
+          <nav className="flex items-center gap-6">
+            <Link to="/login" className="text-[15px] font-medium text-ink-soft hover:text-ink transition-colors">Sign in</Link>
+            <Link to="/signup" className="text-[15px] font-medium px-4 py-2 bg-ink text-bg hover:opacity-85 transition-opacity">
+              Deploy gateway
+            </Link>
           </nav>
         </div>
       </header>
 
-      <main className="max-w-[1080px] mx-auto px-5">
-        <section className="pt-14 pb-10 grid lg:grid-cols-[minmax(0,420px)_1fr] gap-10 items-center">
-          <div>
-            <h1 className="text-[38px] sm:text-[46px] leading-[1.05] font-semibold tracking-tight">
-              Every AI request, accounted for
-            </h1>
-            <p className="mt-4 text-[15px] leading-relaxed text-ink-soft max-w-[52ch]">
-              Point your applications at Conduit instead of the provider. It authenticates
-              them, holds them to their limits, serves what it can from cache, and writes down
-              exactly what each request cost.
-            </p>
-            <div className="mt-6 flex flex-wrap gap-2">
-              <Link to="/signup" className="px-4 h-9 leading-9 bg-accent text-paper text-[14px] font-medium">
-                Create an organization
-              </Link>
-              <Link to="/login" className="px-4 h-9 leading-9 border border-rule bg-surface text-[14px]">
-                Sign in
-              </Link>
-            </div>
+      <main className="flex-1 w-full max-w-6xl mx-auto px-6 pt-32 pb-24">
+        {/* Hero */}
+        <section className="flex flex-col items-center text-center mt-8 mb-16">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 border border-rule bg-surface text-ink-soft text-[13px] font-medium mb-7 animate-in">
+            <span className="w-1.5 h-1.5 rounded-full bg-accent" />
+            Control plane active
           </div>
-          {/*
-           * The hero visual: the 3D scene where it can run, the original
-           * diagram everywhere else — no WebGL, reduced-motion, slow network,
-           * or a failed dynamic import all resolve to the same fallback.
-           */}
-          <div className="bg-surface border border-rule p-4">
-            <Suspense fallback={<Pipe />}>
-              <GatewayHero />
-            </Suspense>
+          <h1 className="t-hero text-ink mb-5 max-w-3xl animate-in stagger-1">
+            Every AI request, routed and accounted for.
+          </h1>
+          <p className="t-body text-ink-soft max-w-xl mb-9 animate-in stagger-2">
+            Point your applications at Conduit instead of the provider. Authenticate traffic, enforce limits, serve from cache, and log exact token spend — instantly.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 animate-in stagger-3">
+            <Link to="/signup" className="px-7 py-3.5 bg-accent text-paper font-medium text-[15px] hover:opacity-90 transition-opacity">
+              Start building
+            </Link>
+            <Link to="/login" className="px-7 py-3.5 bg-surface text-ink font-medium text-[15px] border border-rule hover:bg-surface-2 transition-colors">
+              View dashboard
+            </Link>
           </div>
         </section>
 
-        <section className="py-10 border-t border-rule">
-          <h2 className="text-[13px] font-semibold text-ink-soft">What it handles</h2>
-          <div className="mt-5 grid sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-7">
-            {CAPABILITIES.map(([title, body]) => (
-              <div key={title}>
-                <h3 className="text-[14px] font-semibold">{title}</h3>
-                <p className="mt-1.5 text-[13px] leading-relaxed text-ink-soft">{body}</p>
+        {/* 3D architecture */}
+        <section className="mb-24 w-full animate-in stagger-4">
+          <p className="text-center t-label mb-4">Application → Conduit gateway → Providers</p>
+          <Suspense fallback={<FallbackHero />}>
+            <GatewayHero />
+          </Suspense>
+        </section>
+
+        {/* Feature grid */}
+        <section className="py-16 border-t border-rule">
+          <div className="mb-12">
+            <h2 className="t-page text-ink mb-3">Infrastructure-grade architecture</h2>
+            <p className="t-body text-ink-soft max-w-xl">Engineered for production scale. Conduit handles the complexity of LLM traffic routing so your application doesn't have to.</p>
+          </div>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 border border-rule divide-y lg:divide-y-0 lg:divide-x divide-rule">
+            {CAPABILITIES.map((cap) => (
+              <div key={cap.title} className="p-7 bg-surface panel-hover">
+                <h3 className="text-[16px] font-semibold text-ink mb-2.5">{cap.title}</h3>
+                <p className="t-body text-ink-soft">{cap.body}</p>
               </div>
             ))}
           </div>
         </section>
 
-        <section className="py-10 border-t border-rule grid lg:grid-cols-2 gap-8 items-start">
+        {/* Integration */}
+        <section className="py-16 border-t border-rule grid lg:grid-cols-2 gap-12 items-center">
           <div>
-            <h2 className="text-[20px] font-semibold tracking-tight">One change to your client</h2>
-            <p className="mt-2 text-[13px] leading-relaxed text-ink-soft max-w-[52ch]">
-              Conduit speaks the OpenAI chat completions format. Change the base URL and the
-              key; everything else stays as it is.
+            <h2 className="t-page text-ink mb-5">Zero-friction integration.</h2>
+            <p className="t-body text-ink-soft">
+              Conduit natively speaks the OpenAI chat completions format. Change your base URL and bearer token; your application logic remains entirely untouched.
             </p>
           </div>
-          <pre className="figure text-[12px] leading-relaxed bg-surface border border-rule p-4 overflow-x-auto">
-{`curl https://your-gateway/v1/chat/completions \\
+          <div className="bg-surface border border-rule overflow-hidden">
+            <div className="border-b border-rule px-5 py-3 t-label">Terminal</div>
+            <pre className="figure text-[14px] leading-relaxed p-5 overflow-x-auto text-ink">
+{`curl https://gateway.conduit.dev/v1/chat/completions \\
   -H "Authorization: Bearer tg_live_..." \\
-  -H "Idempotency-Key: order-4471" \\
+  -H "Idempotency-Key: req-tx-4471" \\
   -d '{
-    "model": "mock-small",
-    "messages": [{"role":"user","content":"hello"}]
+    "model": "gpt-4o",
+    "messages": [{"role":"user","content":"status"}]
   }'`}
-          </pre>
+            </pre>
+          </div>
         </section>
       </main>
 
-      <footer className="border-t border-rule mt-6">
-        <div className="max-w-[1080px] mx-auto px-5 py-6 text-[12px] text-ink-faint flex flex-wrap gap-x-4 gap-y-2 justify-between">
-          <span>Conduit — an LLM gateway and usage meter.</span>
-          <span>Built as an engineering portfolio project. Not a commercial service.</span>
+      <footer className="border-t border-rule bg-surface py-10">
+        <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-5">
+          <span className="flex items-center gap-2 text-ink-soft text-[14px]">
+            <Mark size={16} /> Conduit AI control plane
+          </span>
+          <span className="figure text-[12px] text-ink-faint uppercase tracking-widest border border-rule px-3 py-1.5">
+            System operational
+          </span>
         </div>
       </footer>
     </div>
   );
 }
 
-/**
- * GatewayScene reports, one tick after mount, whether WebGL is actually
- * available — a check that cannot be expressed as a Suspense fallback because
- * it isn't about the module loading, it's about the runtime environment. This
- * wrapper holds that as real state, so "no WebGL" swaps to the SVG diagram in
- * the same render rather than leaving an empty box.
- */
 function GatewayHero() {
   const [unsupported, setUnsupported] = useState(false);
-  if (unsupported) return <Pipe />;
+  if (unsupported) return <FallbackHero />;
   return <GatewayScene onUnsupported={() => setUnsupported(true)} />;
 }
