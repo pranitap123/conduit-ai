@@ -146,7 +146,7 @@ export async function dashboardRoutes(app: FastifyInstance, deps: DashboardDeps)
   });
 
   app.post('/api/auth/logout', async (_req, reply) => {
-    reply.header('set-cookie', `${COOKIE}=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax`);
+    clearSessionCookie(reply, deps.secureCookies);
     return reply.send({ ok: true });
   });
 
@@ -292,9 +292,11 @@ function parseCookie(header: string, name: string): string | null {
 }
 
 function setSessionCookie(reply: FastifyReply, token: string, secure: boolean): void {
-  // HttpOnly: JavaScript cannot read it, so an XSS bug cannot steal the session.
-  // SameSite=Lax: the browser will not attach it to cross-site POSTs, which is
-  // the CSRF defence for the state-changing routes above.
   reply.header('set-cookie',
-    `tg_session=${token}; HttpOnly; Path=/; Max-Age=43200; SameSite=Lax${secure ? '; Secure' : ''}`);
+    `tg_session=${token}; HttpOnly; Path=/; Max-Age=43200; SameSite=${secure ? 'None' : 'Lax'}${secure ? '; Secure' : ''}`);
+}
+
+function clearSessionCookie(reply: FastifyReply, secure: boolean): void {
+  reply.header('set-cookie',
+    `tg_session=; HttpOnly; Path=/; Max-Age=0; SameSite=${secure ? 'None' : 'Lax'}${secure ? '; Secure' : ''}`);
 }
