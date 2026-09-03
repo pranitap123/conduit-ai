@@ -1,33 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import type * as THREE from 'three';
 
-/**
- * The landing hero's signature visualization: application traffic entering a
- * gateway, being sorted, and continuing on to providers.
- *
- * Built in plain Three.js rather than react-three-fiber. Fiber buys declarative
- * JSX for a scene graph that gets rebuilt on every prop change; a single hero
- * scene that mounts once and free-runs its own animation loop doesn't need
- * that, and skipping it sidesteps fiber's React-version peer-dependency range
- * entirely — this repo runs React 19, and a scene this small isn't worth
- * finding out whether that range covers it.
- *
- * Three CSS2-style layers of depth, all on one Z axis pushed back slightly so
- * perspective has something to act on:
- *   - two rows of application nodes, left
- *   - the gateway, centre, pulsing gently on its own clock
- *   - two provider nodes, right
- * Packets are small emissive spheres travelling the two connecting curves.
- * Nothing spins for its own sake; every motion is a request in flight.
- *
- * THEMING: the scene owns no palette of its own. Every material's colour is
- * read from the same CSS custom properties (--color-ink, --color-accent,
- * --color-rule, --color-surface-2) that the rest of the product uses, via
- * getComputedStyle against documentElement. A MutationObserver watches the
- * data-theme attribute Shell.tsx toggles; on change it re-reads those
- * properties and pushes the new colours into the existing materials in place
- * — no scene rebuild, no reload, and no second colour system to keep in sync
- * with index.css by hand.
- */
 export function GatewayScene({ onUnsupported }: { onUnsupported: () => void }) {
   const mountRef = useRef<HTMLDivElement>(null);
   const [supported, setSupported] = useState(true);
@@ -49,135 +22,151 @@ export function GatewayScene({ onUnsupported }: { onUnsupported: () => void }) {
       const height = mount.clientHeight;
 
       const scene = new THREE.Scene();
-      const camera = new THREE.PerspectiveCamera(38, width / height, 0.1, 100);
-      camera.position.set(0, 0.6, 9);
-      camera.lookAt(0, 0, 0);
+      const camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 100);
+      camera.position.set(0, 0, 10);
 
       const renderer = new THREE.WebGLRenderer({
-        canvas, antialias: true, alpha: true, powerPreference: 'low-power',
+        canvas, antialias: true, alpha: true, powerPreference: 'high-performance',
       });
       renderer.setSize(width, height);
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       mount.appendChild(canvas);
 
-      /** Reads one design token straight from the cascade — whatever theme is
-       * active on documentElement right now — so this scene can never drift
-       * out of sync with index.css. */
       function token(name: string): string {
         return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
       }
 
-      // ---- static geometry: nodes and connecting rails --------------------
+      // --- Premium Materials ---
+      const coreMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.8 });
+      const wireMat = new THREE.LineBasicMaterial({ transparent: true, opacity: 0.3 });
+      const packetMat = new THREE.MeshBasicMaterial({ 
+        transparent: true, 
+        blending: THREE.AdditiveBlending,
+        depthWrite: false 
+      });
 
-      const nodeGeo = new THREE.BoxGeometry(1.5, 0.55, 0.12);
-      const nodeMat = new THREE.MeshBasicMaterial();
-      const nodeEdgeMat = new THREE.LineBasicMaterial({ transparent: true, opacity: 0.4 });
+      // --- Architecture Nodes ---
+      function createNode(x: number, y: number, isGateway = false) {
+        const group = new THREE.Group();
+        
+        const geo = isGateway ? new THREE.CylinderGeometry(1.2, 1.2, 0.5, 32) : new THREE.BoxGeometry(1.2, 0.4, 1.2);
+        const core = new THREE.Mesh(geo, coreMat);
+        if (isGateway) core.rotation.x = Math.PI / 2;
+        group.add(core);
 
-      function addNode(x: number, y: number) {
-      const mesh = new THREE.Mesh(nodeGeo, nodeMat);
-        mesh.position.set(x, y, 0);
-        const edges = new THREE.LineSegments(new THREE.EdgesGeometry(nodeGeo), nodeEdgeMat);
-        mesh.add(edges);
-        scene.add(mesh);
-        return mesh;
+        const edges = new THREE.LineSegments(new THREE.EdgesGeometry(geo), wireMat);
+        if (isGateway) edges.rotation.x = Math.PI / 2;
+        group.add(edges);
+
+        if (isGateway) {
+          for (let i = 0; i < 2; i++) {
+            const ring = new THREE.LineLoop(new THREE.RingGeometry(1.5 + (i * 0.3), 1.51 + (i * 0.3), 32), wireMat);
+            group.add(ring);
+          }
+        }
+
+        group.position.set(x, y, 0);
+        scene.add(group);
+        return group;
       }
 
-      const appNodes = [addNode(-4.4, 0.9), addNode(-4.4, -0.9)];
-      const providerNodes = [addNode(4.4, 0.9), addNode(4.4, -0.9)];
+      const appNodes = [createNode(-4.5, 1.2), createNode(-4.5, -1.2)];
+      const gatewayNode = createNode(0, 0, true);
+      const providerNodes = [createNode(4.5, 1.2), createNode(4.5, -1.2)];
 
-      // The gateway: three stacked panels pushed toward camera, reading as a
-      // single deeper block rather than a flat card among flat cards. The
-      // centre panel gets its own material (surface-2, fully opaque) so it can
-      // be recoloured independently of the two dimmer flanking panels.
-      const gateGroup = new THREE.Group();
-      const gatePanelMats: InstanceType<typeof THREE.MeshBasicMaterial>[] = [];
-      const gatePanelEdgeMats: InstanceType<typeof THREE.LineBasicMaterial>[] = [];
-      for (let i = 0; i < 3; i += 1) {
-        const panelMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: i === 1 ? 1 : 0.5 });
-        const panel = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.9, 0.1), panelMat);
-        panel.position.z = (i - 1) * 0.16;
-        const edgeMat = new THREE.LineBasicMaterial({ transparent: true, opacity: 0.5 });
-        const edges = new THREE.LineSegments(new THREE.EdgesGeometry(panel.geometry), edgeMat);
-        panel.add(edges);
-        gateGroup.add(panel);
-        gatePanelMats.push(panelMat);
-        gatePanelEdgeMats.push(edgeMat);
-      }
-      scene.add(gateGroup);
-
-      // Connecting rails: thin lines, not tubes — a hairline reads as a wire, a
-      // tube reads as a pipe cleaner.
-      const railMat = new THREE.LineBasicMaterial();
-      const rails: InstanceType<typeof THREE.Line>[] = [];
-      function addRail(from: [number, number], to: [number, number]): InstanceType<typeof THREE.QuadraticBezierCurve3> {
+      // --- Traffic Rails ---
+      const railMat = new THREE.LineBasicMaterial({ transparent: true, opacity: 0.15 });
+      const curves: InstanceType<typeof THREE.QuadraticBezierCurve3>[] = [];
+      
+      function addRail(from: [number, number], to: [number, number]) {
         const curve = new THREE.QuadraticBezierCurve3(
           new THREE.Vector3(from[0], from[1], 0),
-          new THREE.Vector3((from[0] + to[0]) / 2, (from[1] + to[1]) / 2, 0.4),
+          new THREE.Vector3((from[0] + to[0]) / 2, (from[1] + to[1]) / 2, 1.5), 
           new THREE.Vector3(to[0], to[1], 0),
         );
-        const line = new THREE.Line(
-          new THREE.BufferGeometry().setFromPoints(curve.getPoints(40)), railMat,
-        );
+        const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(curve.getPoints(50)), railMat);
         scene.add(line);
-        rails.push(line);
-        return curve;
+        curves.push(curve);
       }
 
-      const inboundCurves = [
-        addRail([-3.65, 0.9], [-0.75, 0.35]),
-        addRail([-3.65, -0.9], [-0.75, -0.35]),
-      ];
-      const outboundCurves = [
-        addRail([0.75, 0.35], [3.65, 0.9]),
-        addRail([0.75, -0.35], [3.65, -0.9]),
+      addRail([-3.8, 1.2], [-1.5, 0]);
+      addRail([-3.8, -1.2], [-1.5, 0]);
+      addRail([1.5, 0], [3.8, 1.2]);
+      addRail([1.5, 0], [3.8, -1.2]);
+
+      /*
+       * Labels. This is the whole point of the diagram: a visitor should read
+       * "app → gateway → provider" in under a second, not reverse-engineer it
+       * from unlabelled boxes. Rendered as plain DOM rather than Three.js
+       * sprites/troika-text so the type is crisp at any zoom, uses the real
+       * design tokens, and costs nothing beyond a Vector3.project() per label
+       * per frame. Decorative — the same "Application → Gateway → Providers"
+       * story is already in accessible page copy above the canvas.
+       */
+      const labelDefs: { text: string; sub: string; pos: InstanceType<typeof THREE.Vector3> }[] = [
+        { text: 'Your applications', sub: 'Sends /v1/chat/completions', pos: new THREE.Vector3(-4.5, 2.1, 0) },
+        { text: 'Conduit gateway', sub: 'Auth · limits · cache · metering', pos: new THREE.Vector3(0, 1.95, 0) },
+        { text: 'LLM providers', sub: 'OpenAI · Anthropic · others', pos: new THREE.Vector3(4.5, 2.1, 0) },
       ];
 
-      // ---- travelling packets ---------------------------------------------
+      const labelLayer = document.createElement('div');
+      labelLayer.setAttribute('aria-hidden', 'true');
+      labelLayer.style.cssText = 'position:absolute;inset:0;pointer-events:none;overflow:hidden;';
+      mount.appendChild(labelLayer);
 
-      const packetGeo = new THREE.SphereGeometry(0.05, 12, 12);
-      const packetMat = new THREE.MeshBasicMaterial();
-      const packets = [...inboundCurves, ...outboundCurves].map((curve, i) => {
+      const labels = labelDefs.map(({ text, sub, pos }) => {
+        const el = document.createElement('div');
+        el.style.cssText = 'position:absolute;transform:translate(-50%,-100%);white-space:nowrap;text-align:center;opacity:0;transition:opacity .5s ease;';
+        const title = document.createElement('div');
+        title.className = 't-label';
+        title.textContent = text;
+        const meta = document.createElement('div');
+        meta.className = 'figure';
+        meta.style.cssText = 'font-size:11px;color:var(--color-ink-faint);margin-top:2px;';
+        meta.textContent = sub;
+        el.append(title, meta);
+        labelLayer.appendChild(el);
+        return { el, pos };
+      });
+
+      // --- Data Packets (Traffic) ---
+      const packetGeo = new THREE.SphereGeometry(0.08, 16, 16);
+      const packets: { mesh: THREE.Mesh; curveIdx: number; offset: number; speed: number }[] = [];
+      
+      for (let i = 0; i < 12; i++) {
         const mesh = new THREE.Mesh(packetGeo, packetMat);
         scene.add(mesh);
-        return { mesh, curve, offset: i * 0.31, speed: reduceMotion ? 0 : 0.32 };
-      });
-
-      /**
-       * Pulls every colour from the live cascade and pushes it into the
-       * existing materials. Called once at setup (so first paint matches
-       * whichever theme was already active) and again on every subsequent
-       * theme toggle. Never rebuilds geometry — only material.color.set().
-       */
-      function applyTheme(): void {
-        const ink = new THREE.Color(token('--color-ink'));
-        const accent = new THREE.Color(token('--color-accent'));
-        const dim = new THREE.Color(token('--color-rule'));
-        const centre = new THREE.Color(token('--color-surface-2'));
-
-        nodeMat.color.copy(dim);
-        nodeEdgeMat.color.copy(ink);
-
-        gatePanelMats[0].color.copy(dim);
-        gatePanelMats[1].color.copy(centre);
-        gatePanelMats[2].color.copy(dim);
-        for (const m of gatePanelEdgeMats) m.color.copy(accent);
-
-        railMat.color.copy(dim);
-        packetMat.color.copy(accent);
+        packets.push({ 
+          mesh, 
+          curveIdx: i % 4, 
+          offset: Math.random(), 
+          speed: reduceMotion ? 0 : 0.2 + (Math.random() * 0.1) 
+        });
       }
+
+      // --- Theme Synchronization ---
+      function applyTheme(): void {
+        const accent = new THREE.Color(token('--color-accent'));
+        const surface = new THREE.Color(token('--color-surface-2'));
+        const rule = new THREE.Color(token('--color-rule'));
+
+        coreMat.color.copy(surface);
+        wireMat.color.copy(rule);
+        railMat.color.copy(rule);
+        packetMat.color.copy(accent);
+        
+        (gatewayNode.children[2] as THREE.Line).material = new THREE.LineBasicMaterial({ color: accent, transparent: true, opacity: 0.6 });
+        (gatewayNode.children[3] as THREE.Line).material = new THREE.LineBasicMaterial({ color: accent, transparent: true, opacity: 0.3 });
+      }
+      
       applyTheme();
-
       const themeObserver = new MutationObserver(applyTheme);
-      themeObserver.observe(document.documentElement, {
-        attributes: true, attributeFilter: ['data-theme'],
-      });
+      themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
-      camera.position.z = 9;
-
-      // Gentle parallax toward the pointer, not a free-orbit camera — depth
-      // that responds to the reader, not motion that runs regardless of them.
+      // --- Fluid Animation ---
       let pointerX = 0;
       let pointerY = 0;
+
       const onPointerMove = (e: PointerEvent): void => {
         const rect = mount.getBoundingClientRect();
         pointerX = ((e.clientX - rect.left) / rect.width - 0.5) * 2;
@@ -186,39 +175,46 @@ export function GatewayScene({ onUnsupported }: { onUnsupported: () => void }) {
       mount.addEventListener('pointermove', onPointerMove);
 
       const clock = new THREE.Clock();
-      let visible = true;
-      const io = new IntersectionObserver(([entry]) => { visible = entry.isIntersecting; }, { threshold: 0.1 });
-      io.observe(mount);
 
       function animate(): void {
         frame = requestAnimationFrame(animate);
-        if (!visible) return;
         const t = clock.getElapsedTime();
 
         if (!reduceMotion) {
-          gateGroup.rotation.y = pointerX * 0.06;
-          gateGroup.rotation.x = -pointerY * 0.04;
-          camera.position.x += (pointerX * 0.35 - camera.position.x) * 0.04;
-          camera.position.y += (0.6 - pointerY * 0.2 - camera.position.y) * 0.04;
+          camera.position.x += (pointerX * 0.5 - camera.position.x) * 0.05;
+          camera.position.y += (-pointerY * 0.5 - camera.position.y) * 0.05;
           camera.lookAt(0, 0, 0);
 
-          // The centre panel breathes on its own clock — activity, not a pulse
-          // tied to any single request.
-          const pulse = 0.85 + Math.sin(t * 1.6) * 0.15;
-          (gateGroup.children[1] as InstanceType<typeof THREE.Mesh>).scale.setScalar(pulse);
+          gatewayNode.children[2].rotation.z = t * 0.5;
+          gatewayNode.children[3].rotation.z = -t * 0.3;
+          
+          appNodes.forEach((n, i) => n.position.y = (i === 0 ? 1.2 : -1.2) + Math.sin(t * 1.5 + i) * 0.05);
+          providerNodes.forEach((n, i) => n.position.y = (i === 0 ? 1.2 : -1.2) + Math.cos(t * 1.5 + i) * 0.05);
         }
 
-        for (const p of packets) {
-          if (p.speed === 0) continue;
+        packets.forEach((p) => {
+          if (p.speed === 0) return;
           const u = (t * p.speed + p.offset) % 1;
-          p.mesh.position.copy(p.curve.getPoint(u));
+          const curve = curves[p.curveIdx];
+          p.mesh.position.copy(curve.getPoint(u));
+          
           const fade = Math.sin(u * Math.PI);
-          (p.mesh.material as InstanceType<typeof THREE.MeshBasicMaterial>).opacity = 0.3 + fade * 0.7;
-          (p.mesh.material as InstanceType<typeof THREE.MeshBasicMaterial>).transparent = true;
-        }
+          (p.mesh.material as THREE.MeshBasicMaterial).opacity = fade * 0.9;
+        });
+
+        const w = mount.clientWidth;
+        const h = mount.clientHeight;
+        labels.forEach(({ el, pos }) => {
+          projected.copy(pos).project(camera);
+          const onScreen = projected.z < 1 && Math.abs(projected.x) < 1.15 && Math.abs(projected.y) < 1.15;
+          el.style.left = `${(projected.x * 0.5 + 0.5) * w}px`;
+          el.style.top = `${(-projected.y * 0.5 + 0.5) * h}px`;
+          el.style.opacity = onScreen ? '1' : '0';
+        });
 
         renderer.render(scene, camera);
       }
+      const projected = new THREE.Vector3();
       animate();
 
       const onResize = (): void => {
@@ -230,20 +226,14 @@ export function GatewayScene({ onUnsupported }: { onUnsupported: () => void }) {
       };
       window.addEventListener('resize', onResize);
 
-      // cleanup runs when the effect re-fires (it will not, given the [] dep
-      // list) or when the component unmounts.
       (mount as HTMLDivElement & { __cleanup?: () => void }).__cleanup = () => {
         cancelAnimationFrame(frame);
-        io.disconnect();
         themeObserver.disconnect();
         window.removeEventListener('resize', onResize);
         mount.removeEventListener('pointermove', onPointerMove);
         renderer.dispose();
-        nodeGeo.dispose();
-        packetGeo.dispose();
-        [...appNodes, ...providerNodes].forEach((n) => n.geometry.dispose());
-        rails.forEach((r) => r.geometry.dispose());
         mount.removeChild(canvas);
+        mount.removeChild(labelLayer);
       };
     });
 
@@ -255,14 +245,15 @@ export function GatewayScene({ onUnsupported }: { onUnsupported: () => void }) {
     };
   }, []);
 
-  if (!supported) return null;  // parent shows the fallback via onUnsupported
+  if (!supported) return null;
 
   return (
     <div
       ref={mountRef}
-      role="img"
-      aria-label="Applications send requests through the Conduit gateway, which authenticates, rate-limits, caches and meters them before forwarding to model providers."
-      className="w-full h-[280px] sm:h-[340px]"
+      className="w-full h-[320px] sm:h-[400px] cursor-crosshair"
+      style={{ 
+        background: 'radial-gradient(circle at center, var(--color-surface-2) 0%, transparent 70%)'
+      }}
     />
   );
 }
