@@ -25,6 +25,23 @@ beforeAll(async () => {
     if (body.model === 'no-usage') {
       return reply.send({ model: body.model, choices: [{ message: { content: 'hi' }, finish_reason: 'stop' }] });
     }
+    if (body.model === 'malformed-json') {
+      // A 200 whose body isn't valid JSON at all — distinct from the
+      // well-formed-but-incomplete cases above. Something the adapter cannot
+      // parse under any schema, not just a field it doesn't recognise.
+      reply.raw.writeHead(200, { 'content-type': 'application/json' });
+      reply.raw.end('{this is not json');
+      return reply;
+    }
+    if (body.model === 'slow-stream') {
+      // Writes one chunk, then holds the connection open well past any
+      // realistic test timeout, so a cancellation test has something to
+      // cancel before the stream would otherwise finish on its own.
+      reply.raw.writeHead(200, { 'content-type': 'text/event-stream' });
+      reply.raw.write('data: {"choices":[{"delta":{"content":"first"}}]}\n\n');
+      await new Promise((r) => setTimeout(r, 30_000));
+      return reply;
+    }
 
     if (body.stream === true) {
       reply.raw.writeHead(200, { 'content-type': 'text/event-stream' });
@@ -142,5 +159,61 @@ describe('streaming', () => {
       for await (const _ of provider().stream(req('boom-500'), signal())) { /* no-op */ }
     };
     await expect(iterate()).rejects.toThrow(ProviderError);
+  });
+});
+
+/**
+ * A malformed response is distinct from an error response: the upstream
+ * returned 200 (nothing told us to expect failure) but the body cannot be
+ * parsed under any schema. This must surface as a thrown error, not as a
+ * result with empty/undefined fields quietly passed downstream — a caller
+ * treating malformed-but-200 as success would record a fabricated SUCCESS
+ * ledger entry for a request that produced no usable content.
+ */
+describe('malformed responses', () => {
+  it('a non-JSON 200 body throws rather than returning empty content', async () => {
+    await expect(provider().complete(req('malformed-json'), signal()))
+      .rejects.toThrow();
+  });
+});
+
+/**
+ * The adapter has no concept of "timeout" versus "client disconnected" — both
+ * arrive identically, as an AbortSignal firing mid-request. routes.ts is what
+ * gives the signal its meaning (a setTimeout for the former, request.raw's
+ * 'close' event for the latter); the adapter's whole contract is to honour
+ * whatever signal it's handed, promptly and without leaking the connection.
+ * Testing "cancellation" here is therefore testing both cases at once.
+ */
+describe('cancellation', () => {
+  it('a signal aborted before the response arrives rejects the request', async () => {
+    const controller = new AbortController();
+    const dead = new OpenAIProvider({ apiKey: 'k', baseUrl: 'http://127.0.0.1:1/v1' });
+    const promise = dead.complete(req('gpt-4o'), controller.signal);
+    controller.abort();
+    await expect(promise).rejects.toThrow();
+  });
+
+  it('a signal aborted mid-stream stops yielding further chunks', async () => {
+    const controller = new AbortController();
+    const chunks: StreamChunk[] = [];
+
+    const iterate = async (): Promise<void> => {
+      for await (const c of provider().stream(req('slow-stream'), controller.signal)) {
+        chunks.push(c);
+        // Cancel as soon as the first real chunk arrives — proves the abort
+        // is honoured mid-flight, not only when raised before the request
+        // starts (already covered above).
+        controller.abort();
+      }
+    };
+
+    // AbortSignal on a streaming fetch surfaces as the reader's `read()`
+    // rejecting; the exact error shape varies by runtime, so this asserts on
+    // outcome (stopped after one chunk, no hang) rather than a specific
+    // error class.
+    await expect(iterate()).rejects.toThrow();
+    expect(chunks.length).toBe(1);
+    expect(chunks[0]?.delta).toBe('first');
   });
 });
