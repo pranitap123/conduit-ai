@@ -2,16 +2,12 @@
 
 /*
  * One token system. Conduit is an instrumentation product — "a meter on a
- * pipe" — not a marketing site wearing a dashboard as a costume. Every
- * surface in the app reads off this same palette: a background, a surface
- * one step up from it, a hairline rule to separate readings, and ink at
- * three levels of confidence. Status gets exactly three extra hues (cost,
- * cache, error) because those are the three things a number can mean here.
+ * pipe" — not a marketing site wearing a dashboard as a costume.
  */
 @theme {
-  --color-bg: #0a0a0b;
-  --color-surface: #131315;
-  --color-surface-2: #1b1b1e;
+  --color-bg: #050506;
+  --color-surface: #0e0e11;
+  --color-surface-2: #18181c;
 
   --color-rule: #26262a;
   --color-rule-soft: #1c1c1f;
@@ -23,6 +19,7 @@
 
   --color-accent: #4d8dff;
   --color-accent-soft: rgba(77, 141, 255, 0.12);
+  --color-ambient-glow: rgba(77, 141, 255, 0.03);
 
   --color-cost: #e0a324;
   --color-cost-soft: rgba(224, 163, 36, 0.12);
@@ -40,20 +37,21 @@
 }
 
 :root[data-theme="light"] {
-  --color-bg: #ffffff;
-  --color-surface: #fafafa;
-  --color-surface-2: #f1f1f2;
+  --color-bg: #fcfcfc;
+  --color-surface: #ffffff;
+  --color-surface-2: #f3f3f5;
 
   --color-rule: #e2e2e4;
   --color-rule-soft: #ececed;
 
-  --color-ink: #101012;
+  --color-ink: #0a0a0c;
   --color-ink-soft: #57575f;
   --color-ink-faint: #9c9ca4;
   --color-paper: #ffffff;
 
   --color-accent: #2f6fe0;
   --color-accent-soft: rgba(47, 111, 224, 0.08);
+  --color-ambient-glow: rgba(47, 111, 224, 0.015);
 
   --color-cost: #a06c00;
   --color-cost-soft: rgba(160, 108, 0, 0.08);
@@ -67,25 +65,39 @@
   --color-success: #1f8a4c;
 }
 
-html { color-scheme: dark; }
+html { color-scheme: dark; scroll-behavior: smooth; }
 :root[data-theme="light"] { color-scheme: light; }
 
 body {
-  background: var(--color-bg);
+  background-color: var(--color-bg);
   color: var(--color-ink);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  transition: background-color 0.6s cubic-bezier(0.16, 1, 0.3, 1), color 0.4s ease;
   overflow-x: hidden;
 }
 
-/*
- * Typography scale. The previous pass ran the whole product at 12–14px,
- * which is why it read as an admin panel — spreadsheets are the one genre of
- * software allowed to be that small. Nothing a person needs to read at a
- * glance (a metric, a page title, a nav label) sits below 15px anymore.
- */
+/* Ambient structural lighting */
+.bg-ambient {
+  background-image: 
+    radial-gradient(circle at 15% 0%, var(--color-ambient-glow) 0%, transparent 40%),
+    radial-gradient(circle at 85% 100%, var(--color-ambient-glow) 0%, transparent 40%);
+  background-attachment: fixed;
+}
+
+/* Crisp, barely-there noise overlay. No text obstruction. */
+.bg-noise {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  opacity: 0.015;
+}
+:root[data-theme="light"] .bg-noise { opacity: 0.02; }
+
+/* Typography */
 .t-hero    { font-size: clamp(2.75rem, 5vw, 4.25rem); line-height: 1.05; font-weight: 600; letter-spacing: -0.03em; }
 .t-page    { font-size: clamp(1.75rem, 3vw, 2.25rem); line-height: 1.2; font-weight: 600; letter-spacing: -0.02em; }
 .t-section { font-size: 1rem; font-weight: 600; letter-spacing: -0.005em; }
@@ -98,10 +110,10 @@ body {
 :where(a, button, input, select, [tabindex]):focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 3px;
-  border-radius: 2px;
+  border-radius: 4px;
 }
 
-/* ---------------------------------------------------------------- Motion */
+/* Motion System */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
@@ -111,10 +123,10 @@ body {
 }
 
 @keyframes fade-up {
-  0% { opacity: 0; transform: translateY(14px); }
-  100% { opacity: 1; transform: none; }
+  0% { opacity: 0; transform: translateY(16px); }
+  100% { opacity: 1; transform: translateY(0); }
 }
-.animate-in { animation: fade-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.animate-in { animation: fade-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) both; }
 
 .stagger-1 { animation-delay: 60ms; }
 .stagger-2 { animation-delay: 120ms; }
@@ -122,27 +134,30 @@ body {
 .stagger-4 { animation-delay: 240ms; }
 .stagger-5 { animation-delay: 300ms; }
 
-/* Panels: a surface and a hairline. No blur, no glow, no shadow-as-decoration. */
-.panel-hover { transition: background-color 0.2s ease, border-color 0.2s ease; }
-.panel-hover:hover { background: var(--color-surface-2); border-color: var(--color-rule); }
+/* Panels: structured and premium. Shadows only appear on interaction. */
+.panel-hover { transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+.panel-hover:hover { 
+  background: var(--color-surface-2); 
+  border-color: var(--color-rule);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px -12px rgba(0,0,0,0.15);
+}
 
 @keyframes slide-in-drawer {
   from { opacity: 0; transform: translateX(24px); }
   to { opacity: 1; transform: translateX(0); }
 }
-.drawer-enter { animation: slide-in-drawer 0.3s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.drawer-enter { animation: slide-in-drawer 0.4s cubic-bezier(0.16, 1, 0.3, 1) both; }
 
-/* Modal/dialog entrance, shared by every dialog in the app. */
 @keyframes enter {
   from { opacity: 0; transform: translateY(8px) scale(0.98); }
   to { opacity: 1; transform: none; }
 }
-.enter { animation: enter 0.2s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.enter { animation: enter 0.3s cubic-bezier(0.16, 1, 0.3, 1) both; }
 
-/* A single, quiet ring used only where something is genuinely live. */
 @keyframes pulse-ring {
   0% { transform: scale(0.9); opacity: 0.6; }
-  100% { transform: scale(1.4); opacity: 0; }
+  100% { transform: scale(1.5); opacity: 0; }
 }
 .pulse-ring { position: relative; }
 .pulse-ring::before {
