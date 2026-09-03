@@ -1,139 +1,107 @@
 @import "tailwindcss";
 
 /*
-  Conduit design tokens.
-
-  The product is a meter on a pipe. The visual language borrows from
-  instrumentation panels: hairline rules that separate readings rather than
-  boxes that decorate them, and tabular figures for anything numeric so columns
-  of numbers line up and can be compared by eye.
-
-  Monospace is used ONLY for figures and identifiers, where alignment carries
-  meaning. Labels are set in the sans face.
-
-  Both themes are first-class: each has its own deliberately chosen ground,
-  rule, ink and accent — light is not dark inverted, and dark is not light with
-  the lights off. The dark accent (#56d1ab) and light accent (#0b5d4e) are
-  different hues at different weights, chosen to read correctly against their
-  own ground, not derived from one another by a formula. DARK IS THE DEFAULT
-  because an operations console is read in a dim room next to a terminal, and
-  the ink-on-dark ground keeps the figures — which are the point — as the
-  brightest thing on screen. That is a default, not a hierarchy: switching to
-  light loses nothing, in polish or in coverage.
-
-  The dark ground is layered rather than flat black: paper < surface <
-  surface-2. Depth is carried by those three steps and by hairline rules, not by
-  shadows or blur, so the panel edges stay crisp at any zoom.
-*/
+ * One token system. Conduit is an instrumentation product — "a meter on a
+ * pipe" — not a marketing site wearing a dashboard as a costume. Every
+ * surface in the app reads off this same palette: a background, a surface
+ * one step up from it, a hairline rule to separate readings, and ink at
+ * three levels of confidence. Status gets exactly three extra hues (cost,
+ * cache, error) because those are the three things a number can mean here.
+ */
 @theme {
-  /* Ground, in three steps. Never pure black — #000 crushes the rules and
-     makes the accent look like it is glowing. */
-  --color-paper:      #0c100f;
-  --color-surface:    #121716;
-  --color-surface-2:  #182120;
+  --color-bg: #0a0a0b;
+  --color-surface: #131315;
+  --color-surface-2: #1b1b1e;
 
-  /* Rules do the separating. Two weights: one visible, one barely there. */
-  --color-rule:       #273230;
-  --color-rule-soft:  #1d2726;
+  --color-rule: #26262a;
+  --color-rule-soft: #1c1c1f;
 
-  /* Three ink weights, spaced far enough apart to build hierarchy without
-     changing size. This spacing is what makes the interface feel typeset. */
-  --color-ink:        #e7ecea;
-  --color-ink-soft:   #98a4a0;
-  --color-ink-faint:  #6c7975;
+  --color-ink: #f2f2f3;
+  --color-ink-soft: #a3a3aa;
+  --color-ink-faint: #5c5c64;
+  --color-paper: #0a0a0b;
 
-  /* One accent. It marks the active thing and nothing else. */
-  --color-accent:     #56d1ab;
-  --color-accent-soft:#12302a;
+  --color-accent: #4d8dff;
+  --color-accent-soft: rgba(77, 141, 255, 0.12);
 
-  /* Semantic colours, each earning its place: money, failure, cache. */
-  --color-cost:       #e0ab52;
-  --color-cost-soft:  #2c2415;
-  --color-error:      #ef7c6f;
-  --color-error-soft: #33201c;
-  --color-cache:      #8fb0e8;
-  --color-cache-soft: #182134;
+  --color-cost: #e0a324;
+  --color-cost-soft: rgba(224, 163, 36, 0.12);
 
-  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
+  --color-cache: #35b8b0;
+  --color-cache-soft: rgba(53, 184, 176, 0.12);
+
+  --color-error: #f0554f;
+  --color-error-soft: rgba(240, 85, 79, 0.12);
+
+  --color-success: #3fb56f;
+
+  --font-sans: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  --font-mono: "IBM Plex Mono", "SF Mono", ui-monospace, monospace;
 }
 
-/* Light theme: its own deliberate palette — a cool paper ground with a deep,
-   saturated accent chosen to hold contrast on white, not a formula applied to
-   the dark tokens above. */
 :root[data-theme="light"] {
-  --color-paper:      #f4f6f4;
-  --color-surface:    #ffffff;
-  --color-surface-2:  #fafbfa;
-  --color-rule:       #dee2dd;
-  --color-rule-soft:  #eaedea;
-  --color-ink:        #141817;
-  --color-ink-soft:   #5a625f;
-  --color-ink-faint:  #8b9491;
+  --color-bg: #ffffff;
+  --color-surface: #fafafa;
+  --color-surface-2: #f1f1f2;
 
-  --color-accent:     #0b5d4e;
-  --color-accent-soft:#e3efeb;
-  --color-cost:       #8a5a00;
-  --color-cost-soft:  #f6efe0;
-  --color-error:      #a32218;
-  --color-error-soft: #f8e8e6;
-  --color-cache:      #3a5fa8;
-  --color-cache-soft: #e7ecf6;
+  --color-rule: #e2e2e4;
+  --color-rule-soft: #ececed;
+
+  --color-ink: #101012;
+  --color-ink-soft: #57575f;
+  --color-ink-faint: #9c9ca4;
+  --color-paper: #ffffff;
+
+  --color-accent: #2f6fe0;
+  --color-accent-soft: rgba(47, 111, 224, 0.08);
+
+  --color-cost: #a06c00;
+  --color-cost-soft: rgba(160, 108, 0, 0.08);
+
+  --color-cache: #157b74;
+  --color-cache-soft: rgba(21, 123, 116, 0.08);
+
+  --color-error: #c73832;
+  --color-error-soft: rgba(199, 56, 50, 0.08);
+
+  --color-success: #1f8a4c;
 }
 
 html { color-scheme: dark; }
 :root[data-theme="light"] { color-scheme: light; }
 
 body {
-  background: var(--color-paper);
+  background: var(--color-bg);
   color: var(--color-ink);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
-  font-feature-settings: "cv05" 1;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.3s ease, color 0.3s ease;
+  overflow-x: hidden;
 }
 
-/* Figures line up in columns; this is why mono exists here. */
-.figure { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+/*
+ * Typography scale. The previous pass ran the whole product at 12–14px,
+ * which is why it read as an admin panel — spreadsheets are the one genre of
+ * software allowed to be that small. Nothing a person needs to read at a
+ * glance (a metric, a page title, a nav label) sits below 15px anymore.
+ */
+.t-hero    { font-size: clamp(2.75rem, 5vw, 4.25rem); line-height: 1.05; font-weight: 600; letter-spacing: -0.03em; }
+.t-page    { font-size: clamp(1.75rem, 3vw, 2.25rem); line-height: 1.2; font-weight: 600; letter-spacing: -0.02em; }
+.t-section { font-size: 1rem; font-weight: 600; letter-spacing: -0.005em; }
+.t-body    { font-size: 1rem; line-height: 1.65; }
+.t-label   { font-size: 0.8125rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; color: var(--color-ink-soft); }
+.t-meta    { font-size: 0.875rem; color: var(--color-ink-soft); }
+.figure    { font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
 
-/* ---------------------------------------------------------------- type scale
-
-   Four roles, deliberately few. Hierarchy comes from weight, colour and
-   letter-spacing far more than from size — an operations console that shouts
-   in 48px headings wastes the rows it exists to show.
-*/
-
-/* Page title. One per screen. */
-.t-page {
-  font-size: 21px;
-  line-height: 1.15;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-}
-
-/* Section heading inside a panel or drawer. Uppercase and tracked out, so it
-   reads as a divider rather than as content competing with the values. */
-.t-section {
-  font-size: 10.5px;
-  font-weight: 600;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  color: var(--color-ink-faint);
-}
-
-/* The label above a reading or beside a field. */
-.t-label { font-size: 12px; color: var(--color-ink-soft); }
-
-/* Supporting note under a reading. Never carries information found nowhere
-   else — it qualifies the figure above it. */
-.t-meta { font-size: 12px; color: var(--color-ink-faint); }
-
-/* One visible, high-contrast focus treatment everywhere. */
+::selection { background: var(--color-accent-soft); color: var(--color-accent); }
 :where(a, button, input, select, [tabindex]):focus-visible {
   outline: 2px solid var(--color-accent);
-  outline-offset: 2px;
+  outline-offset: 3px;
   border-radius: 2px;
 }
 
+/* ---------------------------------------------------------------- Motion */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
@@ -142,62 +110,46 @@ body {
   }
 }
 
-/* The one orchestrated motion in the product: request packets travelling the
-   pipe on the landing page. Not decoration — it is the product's diagram. */
-@keyframes flow { to { stroke-dashoffset: -24; } }
-.pipe-flow { stroke-dasharray: 3 9; animation: flow 1.4s linear infinite; }
-
-@keyframes pulse-in { from { opacity: 0; transform: translateY(4px); } }
-.enter { animation: pulse-in 240ms ease-out both; }
-
-/* A right-hand drawer should arrive from the right. Short and eased-out, so it
-   reads as the panel catching up with the click rather than as an effect. */
-@keyframes slide-in-right { from { opacity: 0; transform: translateX(18px); } }
-.slide-in { animation: slide-in-right 200ms cubic-bezier(0.2, 0.7, 0.3, 1) both; }
-
-/* Depth for the one surface that genuinely floats above the page. Kept to a
-   single soft shadow plus the border; no blur, no glow. */
-.drawer-lift { box-shadow: -16px 0 40px -12px rgb(0 0 0 / 0.45); }
-
-/* -------------------------------------------------------- scroll choreography
-
-   No animation library: an IntersectionObserver (see useReveal.ts) toggles
-   [data-revealed] once, and these two rules do the rest. Kept to opacity and a
-   small translate so layout never shifts and reduced-motion users lose only
-   the fade, never the content.
-*/
-[data-reveal] {
-  opacity: 0;
-  transform: translateY(14px);
-  transition: opacity 520ms cubic-bezier(0.16, 1, 0.3, 1), transform 520ms cubic-bezier(0.16, 1, 0.3, 1);
+@keyframes fade-up {
+  0% { opacity: 0; transform: translateY(14px); }
+  100% { opacity: 1; transform: none; }
 }
-[data-reveal][data-revealed="true"] { opacity: 1; transform: none; }
+.animate-in { animation: fade-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
 
-/* Stagger a group of reveals by giving each child an index via inline
-   --stagger-i; a delay of 70ms per step reads as a sequence, not a flicker. */
-[data-reveal-group] > [data-reveal] { transition-delay: calc(var(--stagger-i, 0) * 70ms); }
+.stagger-1 { animation-delay: 60ms; }
+.stagger-2 { animation-delay: 120ms; }
+.stagger-3 { animation-delay: 180ms; }
+.stagger-4 { animation-delay: 240ms; }
+.stagger-5 { animation-delay: 300ms; }
 
-@keyframes hero-in {
-  from { opacity: 0; transform: translateY(10px); }
+/* Panels: a surface and a hairline. No blur, no glow, no shadow-as-decoration. */
+.panel-hover { transition: background-color 0.2s ease, border-color 0.2s ease; }
+.panel-hover:hover { background: var(--color-surface-2); border-color: var(--color-rule); }
+
+@keyframes slide-in-drawer {
+  from { opacity: 0; transform: translateX(24px); }
+  to { opacity: 1; transform: translateX(0); }
 }
-.hero-line { opacity: 0; animation: hero-in 640ms cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.drawer-enter { animation: slide-in-drawer 0.3s cubic-bezier(0.16, 1, 0.3, 1) both; }
 
-/* A card that lifts a single physical step on hover — never scale, which
-   distorts type, and never a shadow that reads as glow. */
-.lift {
-  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1), border-color 180ms ease;
+/* Modal/dialog entrance, shared by every dialog in the app. */
+@keyframes enter {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: none; }
 }
-.lift:hover { transform: translateY(-2px); border-color: var(--color-ink-faint); }
+.enter { animation: enter 0.2s cubic-bezier(0.16, 1, 0.3, 1) both; }
 
-/* Traffic packets on the landing diagram's provider connections — the same
-   device as .pipe-flow, reused so the whole page reads as one instrument. */
-@keyframes flow-slow { to { stroke-dashoffset: -32; } }
-.pipe-flow-slow { stroke-dasharray: 2 10; animation: flow-slow 2.2s linear infinite; }
-
-/* A soft, slow pulse marking the gateway itself as the active element in the
-   diagram — attention without motion sickness. */
-@keyframes gate-pulse {
-  0%, 100% { opacity: 0.55; }
-  50% { opacity: 1; }
+/* A single, quiet ring used only where something is genuinely live. */
+@keyframes pulse-ring {
+  0% { transform: scale(0.9); opacity: 0.6; }
+  100% { transform: scale(1.4); opacity: 0; }
 }
-.gate-pulse { animation: gate-pulse 2.6s ease-in-out infinite; }
+.pulse-ring { position: relative; }
+.pulse-ring::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 1px solid var(--color-accent);
+  animation: pulse-ring 2.2s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
