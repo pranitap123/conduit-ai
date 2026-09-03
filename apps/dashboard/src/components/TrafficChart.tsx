@@ -13,14 +13,14 @@ import { formatCount, formatMs } from '../lib/format';
  *
  * Latency: "how slow is the slow tail" — p95 only. A mean would hide it.
  */
-const axis = { stroke: 'var(--color-rule)', fontSize: 11, tickLine: false };
+const axis = { stroke: 'var(--color-rule)', fontSize: 12, tickLine: false };
 
 function label(iso: string): string {
   return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
 function Frame({ children }: { children: React.ReactNode }) {
-  return <div className="h-[180px] px-2 pb-2">{children}</div>;
+  return <div className="h-[220px] px-2 pb-4">{children}</div>;
 }
 
 export function VolumeChart({ data }: { data: Bucket[] }) {

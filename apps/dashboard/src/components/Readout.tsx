@@ -30,18 +30,18 @@ export function Reading({
     default: 'text-ink', cost: 'text-cost', error: 'text-error', cache: 'text-cache',
   }[tone];
   return (
-    <div className="px-4 py-4 min-w-0">
+    <div className="px-5 py-5 min-w-0">
       {/*
        * The label is set small, tracked out and in the faintest ink so that the
        * figure below is unambiguously the thing being read. Hierarchy here is
        * carried by colour and tracking, not by making the label smaller still.
        */}
-      <p className="t-section truncate">{label}</p>
-      <p className={`figure mt-2 text-[27px] leading-none font-medium tracking-tight ${valueTone}`}>
+      <p className="t-label truncate">{label}</p>
+      <p className={`figure mt-2.5 text-[30px] leading-none font-medium tracking-tight ${valueTone}`}>
         {value}
-        {unit !== undefined && <span className="ml-1 text-[13px] text-ink-faint font-normal">{unit}</span>}
+        {unit !== undefined && <span className="ml-1 text-[14px] text-ink-faint font-normal">{unit}</span>}
       </p>
-      <p className="mt-2 t-meta truncate h-4">{note ?? ''}</p>
+      <p className="mt-2.5 t-meta truncate h-5">{note ?? ''}</p>
     </div>
   );
 }
