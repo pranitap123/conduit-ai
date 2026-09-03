@@ -1,127 +1,114 @@
-import { NavLink, useNavigate } from 'react-router-dom';
 import { useEffect, useState, type ReactNode } from 'react';
-import { api, type Me } from '../lib/api';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Mark } from './Mark';
-
-const NAV = [
-  { to: '/app', label: 'Overview', end: true },
-  { to: '/app/requests', label: 'Requests' },
-  { to: '/app/keys', label: 'API keys' },
-];
-
-/**
- * Theme is resolved once, before first paint concerns: dark is the product
- * default, and a previous explicit choice always wins over it. Persisting to
- * localStorage rather than to the account keeps this a device preference, which
- * is what it actually is — the same operator wants dark on the wall display and
- * light on a laptop in sunlight.
- */
-function initialTheme(): 'light' | 'dark' {
-  const stored = localStorage.getItem('tg_theme');
-  return stored === 'light' || stored === 'dark' ? stored : 'dark';
-}
+import { api } from '../lib/api';
 
 export function Shell({ children }: { children: ReactNode }) {
-  const [me, setMe] = useState<Me | null>(null);
-  const [theme, setTheme] = useState<'light' | 'dark'>(initialTheme);
-  const [navOpen, setNavOpen] = useState(false);
+  const location = useLocation();
   const navigate = useNavigate();
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    return (localStorage.getItem('conduit-theme') as 'dark' | 'light') || 'dark';
+  });
 
   useEffect(() => {
-    api.me().then(setMe).catch(() => navigate('/login'));
-  }, [navigate]);
-
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-    localStorage.setItem('tg_theme', theme);
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('conduit-theme', theme);
   }, [theme]);
 
-  const signOut = async (): Promise<void> => {
-    await api.logout().catch(() => undefined);
+  const handleLogout = async () => {
+    try {
+      await api.logout();
+    } catch {
+      /* session already gone; proceed to the login screen regardless */
+    }
     navigate('/login');
   };
 
-  return (
-    <div className="min-h-dvh lg:grid lg:grid-cols-[208px_1fr]">
-      <header className="lg:hidden flex items-center justify-between h-12 px-4 border-b border-rule bg-surface">
-        <span className="flex items-center gap-2 text-ink"><Mark /><b className="text-[14px]">Conduit</b></span>
-        <button
-          onClick={() => setNavOpen((v) => !v)}
-          aria-expanded={navOpen}
-          className="text-[13px] text-ink-soft px-2 h-8 border border-rule"
-        >
-          {navOpen ? 'Close' : 'Menu'}
-        </button>
-      </header>
+  const nav = [
+    { name: 'Overview', path: '/app' },
+    { name: 'Request traces', path: '/app/requests' },
+    { name: 'API keys', path: '/app/keys' },
+  ];
 
-      <nav
-        className={`${navOpen ? 'block' : 'hidden'} lg:block border-b lg:border-b-0 lg:border-r border-rule bg-surface lg:sticky lg:top-0 lg:h-dvh`}
-        aria-label="Sections"
-      >
-        <div className="hidden lg:flex items-center gap-2 h-14 px-4 text-ink border-b border-rule-soft">
-          <Mark /><b className="text-[14px] tracking-tight">Conduit</b>
+  return (
+    <div className="min-h-dvh flex flex-col lg:flex-row bg-bg">
+      <nav className="shrink-0 lg:w-64 border-b lg:border-b-0 lg:border-r border-rule bg-surface p-5 lg:p-6 flex flex-col justify-between">
+        <div>
+          <Link to="/app" className="flex items-center gap-2.5 text-ink mb-10 hover:opacity-80 transition-opacity">
+            <Mark size={22} />
+            <b className="text-[17px] tracking-tight font-semibold">Conduit</b>
+          </Link>
+
+          <div className="flex flex-col gap-0.5">
+            <span className="t-label mb-2 px-2.5">Gateway</span>
+            {nav.map((item) => {
+              const active = location.pathname === item.path;
+              return (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={`px-2.5 py-2.5 text-[15px] font-medium border-l-2 transition-colors duration-150 ${
+                    active
+                      ? 'border-l-accent text-ink bg-surface-2'
+                      : 'border-l-transparent text-ink-soft hover:text-ink hover:bg-surface-2'
+                  }`}
+                >
+                  {item.name}
+                </Link>
+              );
+            })}
+          </div>
         </div>
 
-        <ul className="p-2 lg:pt-3">
-          {NAV.map((n) => (
-            <li key={n.to}>
-              <NavLink
-                to={n.to} end={n.end} onClick={() => setNavOpen(false)}
-                /*
-                 * The active row is marked by a solid accent rule on its leading
-                 * edge, not by a filled pill. A rule reads as "you are here" on
-                 * a list; a filled block reads as a button and competes with the
-                 * real controls on the page.
-                 */
-                className={({ isActive }) =>
-                  `relative block pl-3 pr-2.5 h-8 leading-8 text-[13px] transition-colors ${
-                    isActive
-                      ? 'text-ink font-medium bg-surface-2 before:absolute before:left-0 before:top-1 before:bottom-1 before:w-[2px] before:bg-accent'
-                      : 'text-ink-soft hover:text-ink hover:bg-surface-2'
-                  }`}
-              >
-                {n.label}
-              </NavLink>
-            </li>
-          ))}
-        </ul>
-
-        <div className="p-2 lg:absolute lg:bottom-0 lg:w-[208px] border-t border-rule-soft">
-          <p className="px-2.5 py-2 t-section truncate">
-            {me?.org.name ?? ' '}
-          </p>
+        <div className="mt-10 lg:mt-auto pt-5 border-t border-rule-soft flex flex-col gap-0.5">
           <button
-            onClick={() => setTheme((t) => (t === 'light' ? 'dark' : 'light'))}
-            className="block w-full text-left px-2.5 h-8 text-[13px] text-ink-soft hover:text-ink hover:bg-surface-2 transition-colors"
+            type="button"
+            onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
+            className="w-full text-left px-2.5 py-2.5 text-[14px] font-medium text-ink-soft hover:text-ink hover:bg-surface-2 transition-colors duration-150"
           >
-            {theme === 'light' ? 'Dark theme' : 'Light theme'}
+            {theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
           </button>
           <button
-            onClick={() => void signOut()}
-            className="block w-full text-left px-2.5 h-8 text-[13px] text-ink-soft hover:text-ink hover:bg-surface-2 transition-colors"
+            type="button"
+            onClick={() => void handleLogout()}
+            className="w-full text-left px-2.5 py-2.5 text-[14px] font-medium text-ink-soft hover:text-error hover:bg-error-soft transition-colors duration-150"
           >
-            Sign out
+            Log out
           </button>
         </div>
       </nav>
 
-      <main className="min-w-0 p-4 sm:p-6 max-w-[1180px] w-full">{children}</main>
+      <main className="flex-1 min-w-0 p-6 lg:p-10 overflow-y-auto">
+        <div className="max-w-6xl mx-auto w-full animate-in">
+          {children}
+        </div>
+      </main>
     </div>
   );
 }
 
-/** Range selector. Shared by every analytics screen so the vocabulary matches. */
 export function RangePicker({ hours, onChange }: { hours: number; onChange: (h: number) => void }) {
-  const options: Array<[number, string]> = [[1, '1h'], [6, '6h'], [24, '24h'], [168, '7d']];
+  const options = [
+    { label: '1 hour', value: 1 },
+    { label: '24 hours', value: 24 },
+    { label: '7 days', value: 168 },
+    { label: '30 days', value: 720 },
+  ];
+
   return (
-    <div className="inline-flex border border-rule bg-surface" role="group" aria-label="Time range">
-      {options.map(([h, label]) => (
+    <div className="flex items-center bg-surface border border-rule">
+      {options.map((opt) => (
         <button
-          key={h} onClick={() => onChange(h)} aria-pressed={hours === h}
-          className={`px-2.5 h-8 text-[13px] border-r border-rule-soft last:border-r-0 transition-colors ${
-            hours === h ? 'bg-accent-soft text-accent font-medium' : 'text-ink-soft hover:text-ink'}`}
+          key={opt.value}
+          type="button"
+          onClick={() => onChange(opt.value)}
+          className={`px-4 h-10 text-[14px] font-medium border-r border-rule last:border-r-0 transition-colors duration-150 ${
+            hours === opt.value
+              ? 'bg-surface-2 text-ink'
+              : 'text-ink-soft hover:text-ink hover:bg-surface-2'
+          }`}
         >
-          {label}
+          {opt.label}
         </button>
       ))}
     </div>
