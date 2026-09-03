@@ -3,12 +3,12 @@ import { env } from './config/env.js';
 import { closeDb, db } from './db/client.js';
 import { closeRedis, getRedis } from './lib/redis.js';
 import { logger } from './lib/logger.js';
-//import { migrate } from './db/migrate.js';
+import { migrate } from './db/migrate.js';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const redis = await getRedis();
-//await migrate();
+await migrate();
 const app = await buildApp({
   db, redis,
   rateLimitPerMinute: env.rateLimitPerMinute,
