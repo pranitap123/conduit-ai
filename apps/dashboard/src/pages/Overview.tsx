@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { api, type Bucket, type ModelRow, type Overview as OverviewData } from '../lib/api';
 import { formatCost, formatCount, formatMs, formatPercent } from '../lib/format';
 import { ErrorState, Empty, Loading, Panel } from '../components/primitives';
-import { Reading, ReadoutBand } from '../components/Readout';
+import { ReadoutBand, Reading } from '../components/Readout';
 import { RangePicker } from '../components/Shell';
 import { LatencyChart, VolumeChart } from '../components/TrafficChart';
 
@@ -20,95 +20,64 @@ export function Overview() {
   }, [hours]);
 
   useEffect(() => { setData(null); load(); }, [load]);
+  useEffect(() => { const id = setInterval(load, 15_000); return () => clearInterval(id); }, [load]);
 
-  // Poll rather than websocket: one small query every 15s is cheaper to run and
-  // far cheaper to reason about than a socket, and 15s is well inside the
-  // resolution anyone reads a cost dashboard at. Noted in ADR-009.
-  useEffect(() => {
-    const id = setInterval(load, 15_000);
-    return () => clearInterval(id);
-  }, [load]);
-
-  if (error !== null) return <ErrorState message={error} onRetry={load} />;
+  if (error !== null) return <div className="mt-8"><ErrorState message={error} onRetry={load} /></div>;
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="t-page">Overview</h1>
-        <RangePicker hours={hours} onChange={setHours} />
-      </div>
+    <div className="flex flex-col gap-10 pb-20">
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-5 animate-in">
+        <div>
+          <h1 className="t-page text-ink">Overview</h1>
+          <p className="t-body text-ink-soft mt-1.5">Real-time gateway telemetry and spend.</p>
+        </div>
+        <div className="shrink-0"><RangePicker hours={hours} onChange={setHours} /></div>
+      </header>
 
-      {data === null ? <Loading rows={4} /> : (
+      {data === null ? <div className="mt-4"><Loading rows={4} /></div> : (
         <>
-          <ReadoutBand>
-            <Reading
-              label="Requests" value={formatCount(data.o.requests)}
-              note={data.o.requests === 0 ? 'No traffic yet' : `${formatCount(data.o.cacheHits)} from cache`}
-            />
-            <Reading
-              label="Spend" value={formatCost(data.o.costUsd)} tone="cost"
-              note={data.o.unpricedRequests > 0
-                // Never present an understated total as complete.
-                ? `${formatCount(data.o.unpricedRequests)} requests unpriced`
-                : 'All requests priced'}
-            />
-            <Reading
-              label="Tokens" value={formatCount(data.o.totalTokens)}
-              note="Reported by provider"
-            />
-            {/*
-             * Cache hit rate is a ratio of two figures the ledger already
-             * records, so it is a genuine reading rather than an invented one.
-             * It sits beside spend deliberately: a rising hit rate is the
-             * cheapest lever anyone has on the number to its left.
-             */}
-            <Reading
-              label="Cache hits" tone="cache"
-              value={formatPercent(data.o.requests === 0 ? 0 : data.o.cacheHits / data.o.requests)}
-              note={data.o.requests === 0
-                ? 'No traffic yet'
-                : `${formatCount(data.o.cacheHits)} of ${formatCount(data.o.requests)}`}
-            />
-            <Reading
-              label="Failures" value={formatPercent(data.o.requests === 0 ? 0 : data.o.errors / data.o.requests)}
-              tone={data.o.errors > 0 ? 'error' : 'default'}
-              note={`${formatCount(data.o.errors)} of ${formatCount(data.o.requests)}`}
-            />
-            <Reading
-              label="Latency p95" value={formatMs(data.o.p95LatencyMs)}
-              note={`Median ${formatMs(data.o.p50LatencyMs)}`}
-            />
-          </ReadoutBand>
+          <div className="animate-in stagger-1">
+            <ReadoutBand>
+              <Reading label="Requests" value={formatCount(data.o.requests)}
+                note={data.o.requests === 0 ? 'No traffic yet' : `${formatCount(data.o.cacheHits)} cached`} />
+              <Reading label="Spend" value={formatCost(data.o.costUsd)} tone="cost"
+                note={data.o.unpricedRequests > 0 ? `${formatCount(data.o.unpricedRequests)} unpriced` : 'All priced'} />
+              <Reading label="Tokens" value={formatCount(data.o.totalTokens)} note="Reported by providers" />
+              <Reading label="Cache hit rate" value={formatPercent(data.o.requests === 0 ? 0 : data.o.cacheHits / data.o.requests)} tone="cache"
+                note={`${formatCount(data.o.cacheHits)} of ${formatCount(data.o.requests)}`} />
+              <Reading label="Failure rate" value={formatPercent(data.o.requests === 0 ? 0 : data.o.errors / data.o.requests)}
+                tone={data.o.errors > 0 ? 'error' : 'default'} note={`${formatCount(data.o.errors)} of ${formatCount(data.o.requests)}`} />
+              <Reading label="p95 latency" value={formatMs(data.o.p95LatencyMs)} note={`Median ${formatMs(data.o.p50LatencyMs)}`} />
+            </ReadoutBand>
+          </div>
 
           {data.o.requests === 0 ? (
-            <Panel title="Traffic">
-              <Empty
-                title="Nothing has passed through the gateway yet"
-                body="Create an API key, point a client at /v1/chat/completions, and requests will appear here within seconds."
-                action={<Link to="/app/keys" className="text-[13px] text-accent underline underline-offset-2">Create an API key</Link>}
-              />
-            </Panel>
+            <div className="animate-in stagger-2">
+              <Panel>
+                <Empty
+                  title="Awaiting gateway traffic"
+                  body="Create an API key and route your first /v1/chat/completions request to populate telemetry."
+                  action={<Link to="/app/keys" className="text-[14px] font-medium text-accent hover:opacity-80 transition-opacity">Provision an API key →</Link>}
+                />
+              </Panel>
+            </div>
           ) : (
-            <>
-              <div className="grid gap-4 lg:grid-cols-2">
+            <div className="flex flex-col gap-8 animate-in stagger-2">
+              <div className="grid lg:grid-cols-2 gap-6">
                 <Panel title="Request volume">
+                  <p className="px-5 pt-4 t-meta">Served upstream, served from cache, and failed.</p>
                   <VolumeChart data={data.t} />
-                  <p className="px-4 pb-3 t-meta">
-                    Served upstream, served from cache, and failed — stacked to the total.
-                  </p>
                 </Panel>
-                <Panel title="Latency, 95th percentile">
+                <Panel title="Gateway latency (p95)">
+                  <p className="px-5 pt-4 t-meta">Total round-trip time including the upstream provider.</p>
                   <LatencyChart data={data.t} />
-                  <p className="px-4 pb-3 t-meta">
-                    Gateway time including the upstream call. A mean would hide the slow tail.
-                  </p>
                 </Panel>
               </div>
 
-              <Panel title="By model">
+              <Panel title="Traffic by model">
                 <ModelTable rows={data.m} />
               </Panel>
-            </>
+            </div>
           )}
         </>
       )}
@@ -117,37 +86,29 @@ export function Overview() {
 }
 
 function ModelTable({ rows }: { rows: ModelRow[] }) {
-  if (rows.length === 0) {
-    return <Empty title="No models used in this range" body="Widen the time range to see earlier traffic." />;
-  }
+  if (rows.length === 0) return <Empty title="No model data" body="Widen the time range." />;
+
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-[13px]">
-        <caption className="sr-only">Requests, tokens and spend grouped by model</caption>
+      <table className="w-full text-left text-[14px] border-collapse">
         <thead>
           <tr className="border-b border-rule-soft">
-            <th scope="col" className="text-left t-section px-4 py-2.5">Model</th>
-            <th scope="col" className="text-left t-section px-4 py-2.5">Provider</th>
-            <th scope="col" className="text-right t-section px-4 py-2.5">Requests</th>
-            <th scope="col" className="text-right t-section px-4 py-2.5">Tokens</th>
-            <th scope="col" className="text-right t-section px-4 py-2.5">Failures</th>
-            <th scope="col" className="text-right t-section px-4 py-2.5">Spend</th>
+            <th scope="col" className="t-section px-5 py-3">Model</th>
+            <th scope="col" className="t-section px-5 py-3 hidden sm:table-cell">Provider</th>
+            <th scope="col" className="t-section px-5 py-3 text-right">Requests</th>
+            <th scope="col" className="t-section px-5 py-3 text-right hidden md:table-cell">Tokens</th>
+            <th scope="col" className="t-section px-5 py-3 text-right">Spend</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((r) => (
-            <tr key={`${r.provider}/${r.model}`} className="border-b border-rule-soft last:border-0 hover:bg-surface-2 transition-colors">
-              <td className="px-4 py-2 font-medium">{r.model}</td>
-              <td className="px-4 py-2 text-ink-soft">{r.provider}</td>
-              <td className="px-4 py-2 text-right figure">{r.requests}</td>
-              <td className="px-4 py-2 text-right figure">{formatCount(r.totalTokens)}</td>
-              <td className={`px-4 py-2 text-right figure ${r.errorRate > 0 ? 'text-error' : 'text-ink-faint'}`}>
-                {formatPercent(r.errorRate)}
-              </td>
-              <td className="px-4 py-2 text-right figure">
-                {r.costKnown ? formatCost(r.costUsd) : (
-                  <span className="text-ink-faint" title="No pricing configured for this model">Unpriced</span>
-                )}
+            <tr key={`${r.provider}/${r.model}`} className="border-b border-rule-soft last:border-0 hover:bg-surface-2 transition-colors duration-150">
+              <td className="px-5 py-3.5 font-medium text-ink figure">{r.model}</td>
+              <td className="px-5 py-3.5 text-ink-soft hidden sm:table-cell">{r.provider}</td>
+              <td className="px-5 py-3.5 text-right figure text-ink">{r.requests}</td>
+              <td className="px-5 py-3.5 text-right figure text-ink-soft hidden md:table-cell">{formatCount(r.totalTokens)}</td>
+              <td className="px-5 py-3.5 text-right figure text-cost font-medium">
+                {r.costKnown ? formatCost(r.costUsd) : <span className="text-ink-faint font-normal">Unpriced</span>}
               </td>
             </tr>
           ))}

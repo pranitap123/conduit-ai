@@ -19,14 +19,15 @@ export function Keys() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-[20px] font-semibold tracking-tight">API keys</h1>
+        <div>
+          <h1 className="t-page text-ink">API keys</h1>
+          <p className="mt-1 t-meta max-w-prose">
+            A key authenticates requests to <code className="figure text-[13px] bg-surface-2 px-1.5 py-0.5">/v1/chat/completions</code>.
+            Only a hash is stored; keys cannot be recovered after creation.
+          </p>
+        </div>
         <Button variant="primary" onClick={() => setCreating(true)}>Create key</Button>
       </div>
-
-      <p className="text-[13px] text-ink-soft max-w-prose">
-        A key authenticates requests to <code className="figure text-[12px]">/v1/chat/completions</code>.
-        Only a hash is stored, so a key is shown once and cannot be recovered afterwards.
-      </p>
 
       <Panel>
         {error !== null ? <ErrorState message={error} onRetry={load} />
@@ -56,7 +57,6 @@ function KeyTable({ keys, onRevoked }: { keys: ApiKeyRow[]; onRevoked: () => voi
   const [busy, setBusy] = useState<string | null>(null);
 
   const revoke = async (k: ApiKeyRow): Promise<void> => {
-    // Irreversible and immediate. Confirm before, not a toast after.
     if (!window.confirm(`Revoke "${k.name}"? Requests using it will start failing straight away.`)) return;
     setBusy(k.id);
     await api.revokeKey(k.id).catch(() => undefined);
@@ -66,35 +66,35 @@ function KeyTable({ keys, onRevoked }: { keys: ApiKeyRow[]; onRevoked: () => voi
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-[13px]">
+      <table className="w-full text-[14px]">
         <caption className="sr-only">API keys in this organization</caption>
         <thead>
-          <tr className="text-ink-soft border-b border-rule-soft">
-            <th scope="col" className="text-left font-medium px-4 py-2">Name</th>
-            <th scope="col" className="text-left font-medium px-4 py-2">Key</th>
-            <th scope="col" className="text-left font-medium px-4 py-2 hidden md:table-cell">Project</th>
-            <th scope="col" className="text-left font-medium px-4 py-2 hidden sm:table-cell">Last used</th>
-            <th scope="col" className="text-left font-medium px-4 py-2">Status</th>
-            <th scope="col" className="px-4 py-2"><span className="sr-only">Actions</span></th>
+          <tr className="border-b border-rule-soft">
+            <th scope="col" className="text-left t-section px-5 py-3">Name</th>
+            <th scope="col" className="text-left t-section px-5 py-3">Key</th>
+            <th scope="col" className="text-left t-section px-5 py-3 hidden md:table-cell">Project</th>
+            <th scope="col" className="text-left t-section px-5 py-3 hidden sm:table-cell">Last used</th>
+            <th scope="col" className="text-left t-section px-5 py-3">Status</th>
+            <th scope="col" className="px-5 py-3"><span className="sr-only">Actions</span></th>
           </tr>
         </thead>
         <tbody>
           {keys.map((k) => {
             const revoked = k.revoked_at !== null;
             return (
-              <tr key={k.id} className="border-b border-rule-soft last:border-0">
-                <td className="px-4 py-2 font-medium">{k.name}</td>
-                <td className="px-4 py-2 figure text-[12px] text-ink-soft whitespace-nowrap">
+              <tr key={k.id} className="border-b border-rule-soft last:border-0 hover:bg-surface-2 transition-colors">
+                <td className="px-5 py-3.5 font-medium text-ink">{k.name}</td>
+                <td className="px-5 py-3.5 figure text-[13.5px] text-ink-soft whitespace-nowrap">
                   tg_live_{k.prefix}…{k.last4}
                 </td>
-                <td className="px-4 py-2 text-ink-soft hidden md:table-cell">{k.project_name}</td>
-                <td className="px-4 py-2 text-ink-soft hidden sm:table-cell whitespace-nowrap">
-                  {k.last_used_at === null ? 'Never' : formatDateTime(k.last_used_at)}
+                <td className="px-5 py-3.5 text-ink-soft hidden md:table-cell">{k.project_name}</td>
+                <td className="px-5 py-3.5 text-ink-soft hidden sm:table-cell whitespace-nowrap">
+                  {k.last_used_at === null ? 'Never' : <span className="figure text-[13.5px]">{formatDateTime(k.last_used_at)}</span>}
                 </td>
-                <td className="px-4 py-2">
+                <td className="px-5 py-3.5">
                   {revoked ? <Pill tone="bad">Revoked</Pill> : <Pill tone="ok">Active</Pill>}
                 </td>
-                <td className="px-4 py-2 text-right">
+                <td className="px-5 py-3.5 text-right">
                   {!revoked && (
                     <Button variant="danger" disabled={busy === k.id} onClick={() => void revoke(k)}>
                       {busy === k.id ? 'Revoking' : 'Revoke'}
@@ -113,10 +113,10 @@ function KeyTable({ keys, onRevoked }: { keys: ApiKeyRow[]; onRevoked: () => voi
 function Dialog({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={title}>
-      <div className="absolute inset-0 bg-ink/25" />
-      <div className="relative w-full max-w-md bg-surface border border-rule enter">
-        <header className="h-12 px-4 flex items-center border-b border-rule">
-          <h2 className="text-[14px] font-semibold">{title}</h2>
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
+      <div className="relative w-full max-w-md bg-surface border border-rule shadow-2xl enter">
+        <header className="h-14 px-5 flex items-center border-b border-rule">
+          <h2 className="text-[16px] font-semibold tracking-tight text-ink">{title}</h2>
         </header>
         {children}
       </div>
@@ -143,14 +143,14 @@ function CreateDialog({ onClose, onCreated }: { onClose: () => void; onCreated: 
 
   return (
     <Dialog title="Create API key">
-      <div className="p-4 flex flex-col gap-4">
+      <div className="p-5 flex flex-col gap-5">
         <Field
           label="Name" value={name} onChange={setName}
           placeholder="production-backend"
           hint="Shown in the request explorer so you can tell traffic sources apart."
         />
-        {error !== null && <p className="text-[13px] text-error" role="alert">{error}</p>}
-        <div className="flex justify-end gap-2">
+        {error !== null && <p className="text-[14px] text-error" role="alert">{error}</p>}
+        <div className="flex justify-end gap-2 pt-2 border-t border-rule-soft">
           <Button onClick={onClose}>Cancel</Button>
           <Button variant="primary" disabled={busy} onClick={() => void submit()}>
             {busy ? 'Creating' : 'Create key'}
@@ -165,15 +165,15 @@ function RevealDialog({ plaintext, onClose }: { plaintext: string; onClose: () =
   const [copied, setCopied] = useState(false);
   return (
     <Dialog title="Copy your key now">
-      <div className="p-4 flex flex-col gap-3">
-        <p className="text-[13px] text-ink-soft">
+      <div className="p-5 flex flex-col gap-4">
+        <p className="text-[14px] text-ink-soft leading-relaxed">
           This is the only time the key is shown. Only its hash is stored, so it cannot be
           shown again — if you lose it, revoke it and create another.
         </p>
-        <code className="figure text-[12px] p-3 bg-surface-2 border border-rule break-all select-all">
+        <code className="figure text-[13.5px] p-4 bg-surface-2 border border-rule break-all select-all text-ink rounded-sm">
           {plaintext}
         </code>
-        <div className="flex justify-end gap-2">
+        <div className="flex justify-end gap-2 pt-2 border-t border-rule-soft">
           <Button onClick={() => {
             void navigator.clipboard.writeText(plaintext).then(() => setCopied(true));
           }}>
