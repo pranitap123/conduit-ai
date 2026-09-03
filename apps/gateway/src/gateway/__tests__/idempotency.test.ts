@@ -54,11 +54,11 @@ describe('idempotent replay', () => {
     const idem = `retry-${Math.random()}`;
     const first = await post(tenant.apiKey, 'charge me once', idem);
     expect(first.statusCode).toBe(200);
-    expect(first.headers['x-tollgate-idempotent-replay']).toBeUndefined();
+    expect(first.headers['x-conduit-idempotent-replay']).toBeUndefined();
 
     const second = await post(tenant.apiKey, 'charge me once', idem);
     expect(second.statusCode).toBe(200);
-    expect(second.headers['x-tollgate-idempotent-replay']).toBe('true');
+    expect(second.headers['x-conduit-idempotent-replay']).toBe('true');
     expect(second.body).toBe(first.body);
 
     expect(await countFor(tenant.orgId, idem)).toBe(1);
@@ -80,7 +80,7 @@ describe('idempotent replay', () => {
     const a = await post(orgA.apiKey, 'org A private prompt', shared);
     const b = await post(orgB.apiKey, 'org B prompt', shared);
 
-    expect(b.headers['x-tollgate-idempotent-replay']).toBeUndefined();
+    expect(b.headers['x-conduit-idempotent-replay']).toBeUndefined();
     expect(await countFor(orgA.orgId, shared)).toBe(1);
     expect(await countFor(orgB.orgId, shared)).toBe(1);
     expect(a.statusCode).toBe(200);

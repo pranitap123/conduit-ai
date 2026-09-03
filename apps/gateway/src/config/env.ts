@@ -1,25 +1,3 @@
-console.log('Current working directory:', process.cwd());
-console.log('DATABASE_URL from process.env:', process.env.DATABASE_URL);
-console.log('All env vars:', Object.keys(process.env).filter(k => k.includes('DATABASE') || k.includes('REDIS')));
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'node:url';
-
-// Load .env file manually
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const envPath = path.join(__dirname, '../../.env');
-if (fs.existsSync(envPath)) {
-  const envContent = fs.readFileSync(envPath, 'utf8');
-  envContent.split('\n').forEach(line => {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith('#')) return;
-    const [key, ...valueParts] = trimmed.split('=');
-    const value = valueParts.join('=');
-    if (key && value) {
-      process.env[key] = value;
-    }
-  });
-}
 /**
  * Fail-fast environment config.
  *
@@ -66,6 +44,7 @@ const KNOWN_PLACEHOLDER_SECRETS = new Set([
   'password',
   'test',
   'tollgate',
+  'conduit',
   'your-secret-here',
 ]);
 

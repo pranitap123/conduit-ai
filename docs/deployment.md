@@ -49,8 +49,8 @@ Covered by `src/config/__tests__/env.test.ts` (the rules) and
 
 ```bash
 fly launch --no-deploy                 # uses the committed fly.toml
-fly postgres create --name tollgate-db
-fly postgres attach tollgate-db        # sets DATABASE_URL
+fly postgres create --name conduit-db
+fly postgres attach conduit-db        # sets DATABASE_URL
 fly redis create                       # sets REDIS_URL
 fly secrets set AUTH_SECRET="$(openssl rand -base64 32)"
 fly deploy

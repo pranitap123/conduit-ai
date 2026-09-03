@@ -6,7 +6,7 @@
 # green main is the right default for a team with a staging environment, and
 # this has neither.
 
-app = "tollgate"
+app = "conduit"
 primary_region = "sin"          # closest region to the operator
 
 [build]

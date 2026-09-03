@@ -126,10 +126,10 @@ describe('caching', () => {
   it('serves the second identical request from cache and marks the row', async () => {
     const body = basic('deterministic cache probe');
     const first = await post(tenant.apiKey, body);
-    expect(first.headers['x-tollgate-cache']).toBe('MISS');
+    expect(first.headers['x-conduit-cache']).toBe('MISS');
 
     const second = await post(tenant.apiKey, body);
-    expect(second.headers['x-tollgate-cache']).toBe('HIT');
+    expect(second.headers['x-conduit-cache']).toBe('HIT');
     expect(second.body).toBe(first.body);
 
     const row = await latestRequest(tenant.orgId);
@@ -143,10 +143,10 @@ describe('caching', () => {
     const body = basic('identical prompt across tenants');
 
     const a = await post(orgA.apiKey, body);
-    expect(a.headers['x-tollgate-cache']).toBe('MISS');
+    expect(a.headers['x-conduit-cache']).toBe('MISS');
 
     const b = await post(orgB.apiKey, body);
-    expect(b.headers['x-tollgate-cache']).toBe('MISS'); // the leak, prevented
+    expect(b.headers['x-conduit-cache']).toBe('MISS'); // the leak, prevented
   });
 });
 

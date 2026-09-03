@@ -81,7 +81,7 @@ export async function gatewayRoutes(app: FastifyInstance, deps: GatewayDeps): Pr
     if (idempotencyKey !== null && body.stream !== true) {
       const replay = await findReplay(deps.db, ctx.orgId, idempotencyKey);
       if (replay !== null) {
-        reply.header('x-tollgate-idempotent-replay', 'true');
+        reply.header('x-conduit-idempotent-replay', 'true');
         // Deliberately NOT re-recorded. The point of idempotency is that one
         // logical request bills once, however many times it is retried.
         return reply.code(replay.statusCode).send(replay.responseBody);
@@ -168,7 +168,7 @@ export async function gatewayRoutes(app: FastifyInstance, deps: GatewayDeps): Pr
     if (body.stream !== true) {
       const hit = await cache.get(ctx, completion);
       if (hit !== null) {
-        reply.header('x-tollgate-cache', 'HIT');
+        reply.header('x-conduit-cache', 'HIT');
         // A cache hit costs nothing upstream, so cost is recorded as a known
         // zero — genuinely different from "we don't know what this cost".
         await finishTolerant({
@@ -179,7 +179,7 @@ export async function gatewayRoutes(app: FastifyInstance, deps: GatewayDeps): Pr
         });
         return reply.code(200).send(hit);
       }
-      reply.header('x-tollgate-cache', 'MISS');
+      reply.header('x-conduit-cache', 'MISS');
     }
 
     // ---- 6. upstream -----------------------------------------------------
@@ -212,7 +212,7 @@ export async function gatewayRoutes(app: FastifyInstance, deps: GatewayDeps): Pr
         // Return ITS response so both callers see the same bytes.
         const winner = await findReplay(deps.db, ctx.orgId, idempotencyKey);
         if (winner !== null) {
-          reply.header('x-tollgate-idempotent-replay', 'true');
+          reply.header('x-conduit-idempotent-replay', 'true');
           return reply.code(winner.statusCode).send(winner.responseBody);
         }
       }
@@ -267,7 +267,7 @@ async function streamResponse(
     'content-type': 'text/event-stream',
     'cache-control': 'no-cache, no-transform',
     connection: 'keep-alive',
-    'x-tollgate-cache': 'BYPASS',
+    'x-conduit-cache': 'BYPASS',
   });
 
   let usage: TokenUsage | null = null;

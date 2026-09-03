@@ -2,7 +2,7 @@
 
 ## What this is
 A proxy between applications and language-model providers. Applications send
-OpenAI-format requests to Tollgate instead of the provider; Tollgate
+OpenAI-format requests to Conduit instead of the provider; Conduit
 authenticates them, enforces limits, serves what it can from cache, forwards the
 rest, and records what each request cost.
 

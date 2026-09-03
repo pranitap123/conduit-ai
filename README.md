@@ -1,4 +1,4 @@
-# Tollgate
+# Conduit
 
 An LLM gateway: a proxy that sits between applications and model providers,
 handling authentication, per-tenant quotas, usage metering, exact cost
@@ -64,7 +64,7 @@ gateway, it does not insert rows:
 
 ```bash
 npm run seed -- --count 400
-# demo@tollgate.dev / demo-password-123
+# demo@conduit.dev / demo-password-123
 ```
 
 Or run the whole thing as one container:

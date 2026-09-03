@@ -11,7 +11,7 @@ import { logger } from '../lib/logger.js';
 import { migrate } from '../db/migrate.js';
 import { generateTraffic } from './traffic.js';
 
-const DEMO_EMAIL = 'demo@tollgate.dev';
+const DEMO_EMAIL = 'demo@conduit.dev';
 const DEMO_PASSWORD = 'demo-password-123';
 
 /**

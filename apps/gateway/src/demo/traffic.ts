@@ -102,7 +102,7 @@ export async function generateTraffic(opts: TrafficOptions): Promise<TrafficSumm
 
         summary.sent += 1;
         summary.byStatus[res.status] = (summary.byStatus[res.status] ?? 0) + 1;
-        if (res.headers.get('x-tollgate-cache') === 'HIT') summary.cacheHits += 1;
+        if (res.headers.get('x-conduit-cache') === 'HIT') summary.cacheHits += 1;
         if (stream) summary.streamed += 1;
 
         // The body must be consumed or the socket is not released back to the
