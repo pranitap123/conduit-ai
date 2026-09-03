@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import * as THREE from 'three';
 
 /**
  * The landing hero's signature visualization: application traffic entering a
@@ -19,6 +18,15 @@ import * as THREE from 'three';
  *   - two provider nodes, right
  * Packets are small emissive spheres travelling the two connecting curves.
  * Nothing spins for its own sake; every motion is a request in flight.
+ *
+ * THEMING: the scene owns no palette of its own. Every material's colour is
+ * read from the same CSS custom properties (--color-ink, --color-accent,
+ * --color-rule, --color-surface-2) that the rest of the product uses, via
+ * getComputedStyle against documentElement. A MutationObserver watches the
+ * data-theme attribute Shell.tsx toggles; on change it re-reads those
+ * properties and pushes the new colours into the existing materials in place
+ * — no scene rebuild, no reload, and no second colour system to keep in sync
+ * with index.css by hand.
  */
 export function GatewayScene({ onUnsupported }: { onUnsupported: () => void }) {
   const mountRef = useRef<HTMLDivElement>(null);
@@ -52,18 +60,21 @@ export function GatewayScene({ onUnsupported }: { onUnsupported: () => void }) {
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       mount.appendChild(canvas);
 
-      const ink = new THREE.Color('#e7ecea');
-      const accent = new THREE.Color('#56d1ab');
-      const dim = new THREE.Color('#273230');
+      /** Reads one design token straight from the cascade — whatever theme is
+       * active on documentElement right now — so this scene can never drift
+       * out of sync with index.css. */
+      function token(name: string): string {
+        return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+      }
 
       // ---- static geometry: nodes and connecting rails --------------------
 
       const nodeGeo = new THREE.BoxGeometry(1.5, 0.55, 0.12);
-      const nodeMat = new THREE.MeshBasicMaterial({ color: dim });
-      const nodeEdgeMat = new THREE.LineBasicMaterial({ color: ink, transparent: true, opacity: 0.4 });
+      const nodeMat = new THREE.MeshBasicMaterial();
+      const nodeEdgeMat = new THREE.LineBasicMaterial({ transparent: true, opacity: 0.4 });
 
-      function addNode(x: number, y: number): THREE.Mesh {
-        const mesh = new THREE.Mesh(nodeGeo, nodeMat);
+      function addNode(x: number, y: number) {
+      const mesh = new THREE.Mesh(nodeGeo, nodeMat);
         mesh.position.set(x, y, 0);
         const edges = new THREE.LineSegments(new THREE.EdgesGeometry(nodeGeo), nodeEdgeMat);
         mesh.add(edges);
@@ -75,32 +86,30 @@ export function GatewayScene({ onUnsupported }: { onUnsupported: () => void }) {
       const providerNodes = [addNode(4.4, 0.9), addNode(4.4, -0.9)];
 
       // The gateway: three stacked panels pushed toward camera, reading as a
-      // single deeper block rather than a flat card among flat cards.
+      // single deeper block rather than a flat card among flat cards. The
+      // centre panel gets its own material (surface-2, fully opaque) so it can
+      // be recoloured independently of the two dimmer flanking panels.
       const gateGroup = new THREE.Group();
+      const gatePanelMats: InstanceType<typeof THREE.MeshBasicMaterial>[] = [];
+      const gatePanelEdgeMats: InstanceType<typeof THREE.LineBasicMaterial>[] = [];
       for (let i = 0; i < 3; i += 1) {
-        const panel = new THREE.Mesh(
-          new THREE.BoxGeometry(1.5, 1.9, 0.1),
-          new THREE.MeshBasicMaterial({
-            color: i === 1 ? '#182120' : dim,
-            transparent: true,
-            opacity: i === 1 ? 1 : 0.5,
-          }),
-        );
+        const panelMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: i === 1 ? 1 : 0.5 });
+        const panel = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.9, 0.1), panelMat);
         panel.position.z = (i - 1) * 0.16;
-        const edges = new THREE.LineSegments(
-          new THREE.EdgesGeometry(panel.geometry),
-          new THREE.LineBasicMaterial({ color: accent, transparent: true, opacity: 0.5 }),
-        );
+        const edgeMat = new THREE.LineBasicMaterial({ transparent: true, opacity: 0.5 });
+        const edges = new THREE.LineSegments(new THREE.EdgesGeometry(panel.geometry), edgeMat);
         panel.add(edges);
         gateGroup.add(panel);
+        gatePanelMats.push(panelMat);
+        gatePanelEdgeMats.push(edgeMat);
       }
       scene.add(gateGroup);
 
       // Connecting rails: thin lines, not tubes — a hairline reads as a wire, a
       // tube reads as a pipe cleaner.
-      const railMat = new THREE.LineBasicMaterial({ color: dim });
-      const rails: THREE.Line[] = [];
-      function addRail(from: [number, number], to: [number, number]): THREE.QuadraticBezierCurve3 {
+      const railMat = new THREE.LineBasicMaterial();
+      const rails: InstanceType<typeof THREE.Line>[] = [];
+      function addRail(from: [number, number], to: [number, number]): InstanceType<typeof THREE.QuadraticBezierCurve3> {
         const curve = new THREE.QuadraticBezierCurve3(
           new THREE.Vector3(from[0], from[1], 0),
           new THREE.Vector3((from[0] + to[0]) / 2, (from[1] + to[1]) / 2, 0.4),
@@ -126,11 +135,41 @@ export function GatewayScene({ onUnsupported }: { onUnsupported: () => void }) {
       // ---- travelling packets ---------------------------------------------
 
       const packetGeo = new THREE.SphereGeometry(0.05, 12, 12);
-      const packetMat = new THREE.MeshBasicMaterial({ color: accent });
+      const packetMat = new THREE.MeshBasicMaterial();
       const packets = [...inboundCurves, ...outboundCurves].map((curve, i) => {
         const mesh = new THREE.Mesh(packetGeo, packetMat);
         scene.add(mesh);
         return { mesh, curve, offset: i * 0.31, speed: reduceMotion ? 0 : 0.32 };
+      });
+
+      /**
+       * Pulls every colour from the live cascade and pushes it into the
+       * existing materials. Called once at setup (so first paint matches
+       * whichever theme was already active) and again on every subsequent
+       * theme toggle. Never rebuilds geometry — only material.color.set().
+       */
+      function applyTheme(): void {
+        const ink = new THREE.Color(token('--color-ink'));
+        const accent = new THREE.Color(token('--color-accent'));
+        const dim = new THREE.Color(token('--color-rule'));
+        const centre = new THREE.Color(token('--color-surface-2'));
+
+        nodeMat.color.copy(dim);
+        nodeEdgeMat.color.copy(ink);
+
+        gatePanelMats[0].color.copy(dim);
+        gatePanelMats[1].color.copy(centre);
+        gatePanelMats[2].color.copy(dim);
+        for (const m of gatePanelEdgeMats) m.color.copy(accent);
+
+        railMat.color.copy(dim);
+        packetMat.color.copy(accent);
+      }
+      applyTheme();
+
+      const themeObserver = new MutationObserver(applyTheme);
+      themeObserver.observe(document.documentElement, {
+        attributes: true, attributeFilter: ['data-theme'],
       });
 
       camera.position.z = 9;
@@ -166,7 +205,7 @@ export function GatewayScene({ onUnsupported }: { onUnsupported: () => void }) {
           // The centre panel breathes on its own clock — activity, not a pulse
           // tied to any single request.
           const pulse = 0.85 + Math.sin(t * 1.6) * 0.15;
-          (gateGroup.children[1] as THREE.Mesh).scale.setScalar(pulse);
+          (gateGroup.children[1] as InstanceType<typeof THREE.Mesh>).scale.setScalar(pulse);
         }
 
         for (const p of packets) {
@@ -174,8 +213,8 @@ export function GatewayScene({ onUnsupported }: { onUnsupported: () => void }) {
           const u = (t * p.speed + p.offset) % 1;
           p.mesh.position.copy(p.curve.getPoint(u));
           const fade = Math.sin(u * Math.PI);
-          (p.mesh.material as THREE.MeshBasicMaterial).opacity = 0.3 + fade * 0.7;
-          (p.mesh.material as THREE.MeshBasicMaterial).transparent = true;
+          (p.mesh.material as InstanceType<typeof THREE.MeshBasicMaterial>).opacity = 0.3 + fade * 0.7;
+          (p.mesh.material as InstanceType<typeof THREE.MeshBasicMaterial>).transparent = true;
         }
 
         renderer.render(scene, camera);
@@ -196,6 +235,7 @@ export function GatewayScene({ onUnsupported }: { onUnsupported: () => void }) {
       (mount as HTMLDivElement & { __cleanup?: () => void }).__cleanup = () => {
         cancelAnimationFrame(frame);
         io.disconnect();
+        themeObserver.disconnect();
         window.removeEventListener('resize', onResize);
         mount.removeEventListener('pointermove', onPointerMove);
         renderer.dispose();
@@ -221,7 +261,7 @@ export function GatewayScene({ onUnsupported }: { onUnsupported: () => void }) {
     <div
       ref={mountRef}
       role="img"
-      aria-label="Applications send requests through the Tollgate gateway, which authenticates, rate-limits, caches and meters them before forwarding to model providers."
+      aria-label="Applications send requests through the Conduit gateway, which authenticates, rate-limits, caches and meters them before forwarding to model providers."
       className="w-full h-[280px] sm:h-[340px]"
     />
   );
