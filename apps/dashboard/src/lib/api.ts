@@ -4,7 +4,16 @@
  * `credentials: 'include'` on every call because the session lives in an
  * HttpOnly cookie — JavaScript cannot read or attach it manually, which is the
  * point: an XSS bug cannot exfiltrate it.
+ *
+ * `VITE_API_URL` lets the built frontend point at a gateway on a different
+ * origin (e.g. Vercel frontend + Railway backend). It's empty by default,
+ * which reproduces the original same-origin/dev-proxy behaviour exactly —
+ * every path below already starts with `/api`, so the base must NOT also
+ * add an `/api` prefix or you double it up (`/api/api/...`, a 404 that
+ * looks identical to "backend unreachable" from the UI).
  */
+const API_BASE: string = import.meta.env.VITE_API_URL ?? '';
+
 export class ApiError extends Error {
   readonly status: number;
   constructor(status: number, message: string) {
@@ -14,10 +23,7 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const apiBase = import.meta.env.VITE_API_URL || '/api';
-  const url = `${apiBase}${path}`;
-  
-  const res = await fetch(url, {
+  const res = await fetch(`${API_BASE}${path}`, {
     credentials: 'include',
     headers: init.body === undefined ? {} : { 'content-type': 'application/json' },
     ...init,
